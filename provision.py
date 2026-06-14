@@ -252,7 +252,7 @@ def main():
     setup_token = provisioner.setup_token
     print(f"  DSN: {dsn}  Token: {setup_token}")
 
-    result = binder.confirm_device_connected(dsn, setup_token)
+    result = binder.confirm_device_connected(dsn, setup_token, timeout=20)
     if result:
         print("  Device confirmed on cloud!")
     else:
