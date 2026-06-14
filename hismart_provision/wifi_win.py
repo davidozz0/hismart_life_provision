@@ -241,11 +241,15 @@ class WindowsWiFi:
         current_adapter = None
         for line in output.splitlines():
             stripped = line.strip()
-            if "Ethernet adapter" in line and "Media disconnected" not in line:
+            # Match both English and Italian adapter names
+            is_eth = ("Ethernet adapter" in line or "Scheda Ethernet" in line) and "Media disconnected" not in line and "Bluetooth" not in line
+            is_wifi = ("Wireless LAN adapter" in line or "Wi-Fi" in line or "Scheda LAN wireless" in line) and "Media disconnected" not in line
+
+            if is_eth:
                 current_adapter = "eth"
-            elif ("Wireless LAN adapter" in line or "Wi-Fi" in line or "Wireless" in line) and "Media disconnected" not in line:
+            elif is_wifi:
                 current_adapter = "wifi"
-            elif current_adapter == "eth" and "IPv4" in stripped and not stripped.startswith("Autoconfiguration"):
+            elif current_adapter == "eth" and ("IPv4" in line or "Indirizzo IPv4" in line) and "Autoconfiguration" not in line and "Autoconfigurazione" not in line:
                 info["ethernet"] = True
             elif current_adapter == "wifi" and ("Default Gateway" in line or "Gateway predefinito" in line):
                 parts = line.split(":")

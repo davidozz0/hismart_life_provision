@@ -1,9 +1,6 @@
 """Bind a provisioned device to the user's Ayla/HiSense account."""
 
-import json
 import time
-import urllib.error
-import urllib.request
 
 from .auth import AylaAuth
 from .config import AYLA_DEVICE_BASE_URL
@@ -19,13 +16,9 @@ class DeviceBinder:
         self._auth = auth
 
     def confirm_device_connected(self, dsn: str, setup_token: str, timeout: int = 60) -> dict | None:
-        """Poll the Ayla cloud until the device appears as connected.
-
-        Uses the Device service to check if the device has connected to the cloud.
-        """
+        """Poll the Ayla cloud until the device appears as connected."""
         url = f"{AYLA_DEVICE_BASE_URL}/apiv1/devices/connected.json?dsn={dsn}&setup_token={setup_token}"
-        _log.info("Polling device connection: %s", url)
-        _log.info("  DSN: %s, timeout: %ss", dsn, timeout)
+        _log.info("Polling: %s", url)
 
         deadline = time.time() + timeout
         attempt = 0
@@ -33,49 +26,35 @@ class DeviceBinder:
             attempt += 1
             try:
                 data = self._auth.api_get(url)
-                _log.info("Device confirmed on cloud! (attempt %d)", attempt)
+                _log.info("Device confirmed! (attempt %d)", attempt)
                 return data
             except RuntimeError as e:
-                _log.debug("Poll attempt %d: not yet (%s)", attempt, e)
+                _log.debug("Poll %d: not yet (%s)", attempt, e)
                 time.sleep(2)
         _log.error("Device did not confirm within %ss", timeout)
         return None
 
-    def bind_device(self, dsn: str, setup_token: str, device_name: str = "") -> dict:
+    def bind_device(self, dsn: str, setup_token: str,
+                    regtoken: str = "", lat: str = "0.0", lng: str = "0.0") -> dict:
         """Register/bind the device to the user's account.
 
-        Registration type is APMode (4) since we used SoftAP provisioning.
+        Matches AylaRegistration.registerDevice() format:
+        POST /apiv1/devices.json
+        {"device": {"dsn": "...", "setup_token": "...", "lat": "...", "lng": "..."}}
         """
-        _log.info("Binding device: dsn=%s name=%s", dsn, device_name or dsn)
-        reg_body = {
-            "registration": {
+        _log.info("Binding device: dsn=%s", dsn)
+        body = {
+            "device": {
                 "dsn": dsn,
                 "setup_token": setup_token,
-                "reg_type": 4,
-                "device": {
-                    "product_name": device_name or dsn,
-                },
+                "lat": lat,
+                "lng": lng,
             },
         }
-        url = f"{AYLA_DEVICE_BASE_URL}/apiv1/devices.json"
-        result = self._auth.api_post(url, reg_body, base_url=AYLA_DEVICE_BASE_URL)
-        _log.info("Device bound successfully!")
-        return result
+        if regtoken:
+            body["device"]["regtoken"] = regtoken
 
-    def register_candidate(self, dsn: str, setup_token: str,
-                           latitude: str = "0.0", longitude: str = "0.0") -> dict:
-        """Alternative: use the registration candidate API."""
-        _log.info("Binding via registerCandidate: dsn=%s", dsn)
-        data = {
-            "registration": {
-                "dsn": dsn,
-                "setup_token": setup_token,
-                "reg_type": "APMode",
-                "latitude": latitude,
-                "longitude": longitude,
-            },
-        }
-        url = f"{AYLA_DEVICE_BASE_URL}/apiv1/devices/register.json?regtype=APMode"
-        result = self._auth.api_post(url, data, base_url=AYLA_DEVICE_BASE_URL)
-        _log.info("Device registered successfully!")
+        url = f"{AYLA_DEVICE_BASE_URL}/apiv1/devices.json"
+        result = self._auth.api_post(url, body, base_url=AYLA_DEVICE_BASE_URL)
+        _log.info("Device bound!")
         return result

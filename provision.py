@@ -262,14 +262,9 @@ def main():
     print_step(10, "Binding device to your account...")
     try:
         binder.bind_device(dsn, setup_token)
-        print("  Device bound to account!")
+        print("  Device bound!")
     except RuntimeError as e:
-        print(f"  Bind primary failed: {e}")
-        try:
-            binder.register_candidate(dsn, setup_token)
-            print("  Device registered (alt method)!")
-        except RuntimeError as e2:
-            print(f"  Bind also failed: {e2}")
+        print(f"  Bind failed: {e}")
 
     # ── Step 11: Restore WiFi ────────────────────────────────
     print_step(11, "Restoring Wi-Fi connection...")
