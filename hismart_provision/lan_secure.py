@@ -200,11 +200,12 @@ class SecureLANServer:
 
             def do_POST(self):
                 body = self._read_body()
-                _log.info("DEV->PC %s %s (%dB)", self.command, self.path, len(body))
+                path = self.path.split("?")[0]  # Strip query string
+                _log.info("DEV->PC %s %s (%dB)", self.command, path, len(body))
                 if body and len(body) < 500:
                     _log.debug("  body: %s", body[:300])
 
-                if self.path == "/local_lan/key_exchange.json":
+                if path == "/local_lan/key_exchange.json":
                     resp_body = parent._handle_key_exchange(body)
                     # HTTP 206 = Partial Content when commands are queued (signals device to poll)
                     status = 206 if parent._commands else 200
@@ -216,14 +217,14 @@ class SecureLANServer:
                     self.end_headers()
                     self.wfile.write(resp_bytes)
 
-                elif self.path == "/local_lan/status.json":
+                elif path == "/local_lan/status.json":
                     parent._handle_status(body)
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
                     self.wfile.write(b"")
 
-                elif self.path in ("/local_lan/wifi_scan_results.json",
+                elif path in ("/local_lan/wifi_scan_results.json",
                                    "/local_lan/wifi_status.json",
                                    "/local_lan/connect_status"):
                     self.send_response(200)
@@ -231,7 +232,7 @@ class SecureLANServer:
                     self.end_headers()
                     self.wfile.write(b"")
 
-                elif self.path in ("/local_lan/property/datapoint.json",
+                elif path in ("/local_lan/property/datapoint.json",
                                    "/local_lan/property/datapoint/ack.json",
                                    "/local_lan/node/property/datapoint.json",
                                    "/local_lan/node/conn_status.json",
@@ -246,9 +247,10 @@ class SecureLANServer:
                     self.end_headers()
 
             def do_GET(self):
-                if self.path == "/local_lan/commands.json":
+                path = self.path.split("?")[0]
+                if path == "/local_lan/commands.json":
                     parent._handle_commands(self)
-                elif self.path == "/local_lan/regtoken.json":
+                elif path == "/local_lan/regtoken.json":
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()

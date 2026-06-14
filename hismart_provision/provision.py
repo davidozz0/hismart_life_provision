@@ -271,14 +271,36 @@ class DeviceProvisioner:
             server.stop()
             return False
 
-        _log.info("Key exchange complete. Device will poll for status command...")
-        # Wait for device to poll, get status command, and POST status response back
-        for _ in range(30):
+        _log.info("Key exchange complete. Polling device for DSN directly...")
+        # After key exchange, the device may have activated its HTTP endpoint
+        for _ in range(10):
             time.sleep(1)
-            if server.dsn:
-                self._dsn = server.dsn
-                _log.info("Got DSN from device: %s", self._dsn)
-                break
+            try:
+                url = f"http://{self._device_ip}/local_lan/status.json"
+                req = urllib.request.Request(url, data=b"{}",
+                    headers={"Content-Type": "application/json", "Accept": "application/json"},
+                    method="POST")
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    _log.info("Direct status response: %s", data)
+                    if "dsn" in data:
+                        self._dsn = data["dsn"]
+                        _log.info("Got DSN from device HTTP: %s", self._dsn)
+                        break
+            except urllib.error.HTTPError:
+                pass  # still 404
+            except Exception as e:
+                _log.debug("Direct poll: %s", e)
+
+        # Also wait for status push via POST to our server
+        if not self._dsn:
+            _log.info("Waiting for status push via LAN (up to 30s)...")
+            for _ in range(30):
+                time.sleep(1)
+                if server.dsn:
+                    self._dsn = server.dsn
+                    _log.info("Got DSN from device LAN: %s", self._dsn)
+                    break
 
         if not self._dsn:
             _log.warning("Device did not return DSN within 30s, continuing anyway")
