@@ -384,6 +384,19 @@ class SecureLANServer:
         _log.info("Queued WiFi connect command (id=%d): %s", self._cmd_id, resource[:80])
         return self._cmd_id
 
+    def queue_status_command(self) -> int:
+        """Queue a GET status command to fetch device info/DSN first."""
+        self._cmd_id += 1
+        cmd = {
+            "id": self._cmd_id,
+            "method": "GET",
+            "resource": "status.json",
+            "uri": "/local_lan/status.json",
+        }
+        self._commands.append(cmd)
+        _log.info("Queued status request command (id=%d)", self._cmd_id)
+        return self._cmd_id
+
     def wait_for_key_exchange(self, timeout: int = 30) -> bool:
         return self._key_exchange_done.wait(timeout)
 
