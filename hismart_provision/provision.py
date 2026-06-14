@@ -210,7 +210,7 @@ class DeviceProvisioner:
             return {}
 
     @staticmethod
-    def _device_http_post(url: str, data: dict, timeout: int = 10) -> dict:
+    def _device_http_post(self, url: str, data: dict, timeout: int = 10) -> dict:
         body = json.dumps(data).encode("utf-8")
         req = urllib.request.Request(
             url, data=body,

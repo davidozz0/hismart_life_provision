@@ -308,29 +308,39 @@ class SecureLANServer:
     def _handle_status(self, body: bytes) -> None:
         """Handle device status POST - extract DSN from encrypted payload."""
         if not body:
+            _log.debug("Status POST with empty body")
             return
         try:
-            # Try to parse as JSON first (may be wrapped)
             data = json.loads(body)
             enc_str = data.get("enc", "")
             if enc_str and self._enc.dev_crypto_key:
                 plain = self._enc.decrypt(enc_str)
                 if plain:
-                    _log.info("Decrypted status: %s", plain[:200])
-                    # Parse inner JSON
+                    _log.info("Decrypted status: %s", plain[:300])
                     inner = json.loads(plain)
-                    # Look for data field which contains the device JSON as a string
                     inner_data = inner.get("data", "")
                     if inner_data:
                         dev_info = json.loads(inner_data) if isinstance(inner_data, str) else inner_data
-                        if dev_info.get("dsn"):
-                            self._dsn = dev_info["dsn"]
+                        dsn = dev_info.get("dsn") or dev_info.get("device", {}).get("dsn")
+                        if dsn:
+                            self._dsn = dsn
                             _log.info("Got DSN from device: %s", self._dsn)
-                        elif dev_info.get("device", {}).get("dsn"):
-                            self._dsn = dev_info["device"]["dsn"]
-                            _log.info("Got DSN from device: %s", self._dsn)
+                else:
+                    _log.warning("Failed to decrypt status body")
+            else:
+                _log.debug("Status POST (raw): %s", data)
         except Exception as e:
-            _log.debug("Status parse error (ignorable): %s", e)
+            _log.debug("Status parse error: %s", e)
+
+            # Also check for unencrypted status
+            try:
+                data = json.loads(body)
+                dsn = data.get("dsn") or data.get("device", {}).get("dsn")
+                if dsn:
+                    self._dsn = dsn
+                    _log.info("Got DSN from unencrypted status: %s", dsn)
+            except Exception:
+                pass
 
     def _handle_commands(self, handler) -> None:
         """Respond to device polling for commands."""
@@ -360,20 +370,18 @@ class SecureLANServer:
 
     def queue_connect_command(self, ssid: str, key: str, setup_token: str) -> int:
         """Queue a WiFi connect command. Returns command ID."""
+        from urllib.parse import urlencode
         self._cmd_id += 1
+        resource = f"wifi_connect.json?{urlencode({'ssid': ssid, 'key': key, 'setup_token': setup_token})}"
         cmd = {
             "id": self._cmd_id,
             "method": "POST",
-            "resource": "wifi_connect.json",
+            "resource": resource,
             "uri": "/local_lan/connect_status",
-            "data": json.dumps({
-                "ssid": ssid,
-                "key": key,
-                "setup_token": setup_token,
-            }),
+            "data": "none",
         }
         self._commands.append(cmd)
-        _log.info("Queued WiFi connect command (id=%d)", self._cmd_id)
+        _log.info("Queued WiFi connect command (id=%d): %s", self._cmd_id, resource[:80])
         return self._cmd_id
 
     def wait_for_key_exchange(self, timeout: int = 30) -> bool:
