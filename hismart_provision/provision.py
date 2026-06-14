@@ -17,6 +17,11 @@ from .lan_secure import SecureLANServer, generate_rsa_keypair, send_local_reg
 _log = get_logger("hismart.provision")
 
 
+def _random_token(length: int = 8) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
 class DeviceProvisioner:
     """Handle the SoftAP provisioning of a Hisense smart device."""
 

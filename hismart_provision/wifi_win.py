@@ -217,9 +217,9 @@ class WindowsWiFi:
         output = result.stdout
         in_wifi = False
         for line in output.splitlines():
-            if "Wireless LAN adapter" in line or "Wi-Fi" in line:
+            if "Wireless LAN adapter" in line or "Wi-Fi" in line or "Wireless" in line:
                 in_wifi = True
-            elif in_wifi and line.strip().startswith("Default Gateway"):
+            elif in_wifi and ("Default Gateway" in line or "Gateway predefinito" in line):
                 parts = line.split(":")
                 if len(parts) >= 2:
                     gw = parts[-1].strip()
