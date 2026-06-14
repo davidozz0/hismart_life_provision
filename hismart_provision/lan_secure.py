@@ -123,7 +123,10 @@ class AylaEncryption:
         self._d_cipher: Cipher | None = None
 
     def encrypt_and_sign(self, plaintext: str) -> str:
-        """Encrypt a command to send to device: {enc: base64, sign: base64}"""
+        """Encrypt a command to send to device: {enc: base64, sign: base64}
+
+        Matches AylaEncryption.encryptEncapsulateSign() exactly.
+        """
         seq = self._seq_no
         self._seq_no += 1
         payload = f'{{"seq_no":{seq},"data":{plaintext}}}'
@@ -131,9 +134,11 @@ class AylaEncryption:
 
         sign = base64.b64encode(_hmac_sha256(self.app_sign_key, data)).decode()
 
-        # Pad to 16-byte boundary
-        pad_len = (16 - (len(data) % 16)) % 16
-        padded = data + b"\x00" * pad_len
+        # Java adds +1 byte, then pads to 16-byte boundary
+        java_length = len(data) + 1
+        pad_len = (16 - (java_length % 16)) % 16
+        total_len = java_length + pad_len
+        padded = data + b"\x00" * (total_len - len(data))
 
         cipher = Cipher(algorithms.AES(self.app_crypto_key), modes.CBC(self.app_iv_seed))
         encryptor = cipher.encryptor()
