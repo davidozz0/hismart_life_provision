@@ -207,3 +207,24 @@ class WindowsWiFi:
             ["netsh", "wlan", "delete", "profile", f"name={profile_name}"],
             capture_output=True, text=True, timeout=10,
         )
+
+    @staticmethod
+    def get_gateway() -> str | None:
+        """Get the default gateway of the current Wi-Fi connection via ipconfig."""
+        result = subprocess.run(
+            ["ipconfig"], capture_output=True, text=True, timeout=10,
+        )
+        output = result.stdout
+        in_wifi = False
+        for line in output.splitlines():
+            if "Wireless LAN adapter" in line or "Wi-Fi" in line:
+                in_wifi = True
+            elif in_wifi and line.strip().startswith("Default Gateway"):
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    gw = parts[-1].strip()
+                    if gw and gw != "0.0.0.0":
+                        return gw
+            elif in_wifi and line.strip() == "":
+                in_wifi = False
+        return None

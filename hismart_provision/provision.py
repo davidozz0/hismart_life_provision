@@ -23,12 +23,17 @@ class DeviceProvisioner:
         self._dsn: str | None = None
         self._setup_token: str | None = None
         self._device_ssid: str | None = None
+        self._device_ip: str = DEVICE_HOTSPOT_IP
 
     @property
     def dsn(self) -> str:
         if not self._dsn:
             raise RuntimeError("DSN not available. Connect to device first.")
         return self._dsn
+
+    @property
+    def device_ip(self) -> str:
+        return self._device_ip
 
     @property
     def setup_token(self) -> str:
@@ -55,13 +60,20 @@ class DeviceProvisioner:
         ok = self._wifi.connect(ssid, password=None, timeout=timeout)
         if ok:
             _log.info("Connected to device %s", ssid)
+            time.sleep(3)
+            gw = self._wifi.get_gateway()
+            if gw:
+                self._device_ip = gw
+                _log.info("Device gateway IP: %s", gw)
+            else:
+                _log.warning("Could not detect gateway IP, using default %s", DEVICE_HOTSPOT_IP)
         else:
             _log.error("Failed to connect to device %s", ssid)
         return ok
 
     def fetch_device_info(self) -> dict:
         """Fetch device status/info from the device's HTTP API (non-secure path)."""
-        url = f"http://{DEVICE_HOTSPOT_IP}/local_lan/status.json"
+        url = f"http://{self._device_ip}/local_lan/status.json"
         _log.info("Fetching device info: %s", url)
         try:
             data = self._device_http_post(url, {})
@@ -76,7 +88,7 @@ class DeviceProvisioner:
 
     def start_wifi_scan(self) -> bool:
         """Command the device to start scanning for WiFi networks."""
-        url = f"http://{DEVICE_HOTSPOT_IP}/local_lan/wifi_scan.json"
+        url = f"http://{self._device_ip}/local_lan/wifi_scan.json"
         _log.info("Starting WiFi scan on device: %s", url)
         try:
             self._device_http_post(url, {})
@@ -87,7 +99,7 @@ class DeviceProvisioner:
 
     def get_wifi_scan_results(self) -> list[dict]:
         """Fetch WiFi scan results from the device, filtering out other Hisense devices."""
-        url = f"http://{DEVICE_HOTSPOT_IP}/local_lan/wifi_scan_results.json"
+        url = f"http://{self._device_ip}/local_lan/wifi_scan_results.json"
         _log.info("Fetching WiFi scan results: %s", url)
         try:
             data = self._device_http_get(url)
@@ -105,7 +117,7 @@ class DeviceProvisioner:
         """Send home WiFi credentials to the device and wait for connection."""
         self._setup_token = _random_token(8)
 
-        connect_url = f"http://{DEVICE_HOTSPOT_IP}/local_lan/connect_status"
+        connect_url = f"http://{self._device_ip}/local_lan/connect_status"
         connect_body = {
             "ssid": ssid,
             "key": password,
@@ -117,7 +129,7 @@ class DeviceProvisioner:
         self._device_http_post(connect_url, connect_body)
 
         deadline = time.time() + SETUP_TIMEOUTS["send_password"]
-        status_url = f"http://{DEVICE_HOTSPOT_IP}/local_lan/wifi_status.json"
+        status_url = f"http://{self._device_ip}/local_lan/wifi_status.json"
         last_state = ""
 
         _log.info("Polling device WiFi status (timeout=%ss)...", SETUP_TIMEOUTS["send_password"])
@@ -159,7 +171,7 @@ class DeviceProvisioner:
 
     def stop_ap_mode(self) -> None:
         """Command the device to stop its AP mode (optional)."""
-        url = f"http://{DEVICE_HOTSPOT_IP}/local_lan/wifi_stop_ap.json"
+        url = f"http://{self._device_ip}/local_lan/wifi_stop_ap.json"
         try:
             self._device_http_post(url, {})
         except Exception:
@@ -177,7 +189,7 @@ class DeviceProvisioner:
         return self._wifi.connect(ssid, password, timeout=SETUP_TIMEOUTS["reconnect_wifi"])
 
     @staticmethod
-    def _device_http_get(url: str, timeout: int = 10) -> dict:
+    def _device_http_get(self, url: str, timeout: int = 10) -> dict:
         req = urllib.request.Request(
             url,
             headers={"Accept": "application/json"},
