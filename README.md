@@ -45,10 +45,21 @@ The interactive wizard will guide you through:
 
 1. Enter your Hisense account email/password
 2. Enter your home Wi-Fi SSID and password
-3. Put the device in pairing mode (hold the Wi-Fi/reset button until LED blinks)
+3. Put the device in pairing mode (see instructions below)
 4. The script scans and connects to the device
 5. Credentials are sent to the device
 6. The device connects to your home Wi-Fi and binds to your account
+
+### Putting devices in pairing mode
+
+These instructions are extracted from the official Hisense app resources:
+
+| Device type | Pairing method |
+|---|---|
+| **Air Conditioner** | Press **Horizon Airflow** button 6 times on the remote. Buzzer sounds 5 times, display shows **"77"**. OR press **Sleep** 8 times on wired controller. |
+| **Portable AC** | Press **SWING** button 6 times on the remote. Buzzer sounds 5 times, display shows **"77"**. |
+| **Dehumidifier** | Press **Mode + Fan** buttons together. Buzzer sounds 3 times, display shows **"P2"**. |
+| **Refrigerator** | Hold the network/Wi-Fi button for 3 seconds. WiFi icon flashes on display panel. |
 
 ### Network requirements
 
