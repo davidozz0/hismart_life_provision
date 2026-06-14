@@ -198,7 +198,9 @@ class SecureLANServer:
 
                 if self.path == "/local_lan/key_exchange.json":
                     resp_body = parent._handle_key_exchange(body)
-                    self.send_response(200)
+                    # HTTP 206 = Partial Content when commands are queued (signals device to poll)
+                    status = 206 if parent._commands else 200
+                    self.send_response(status)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Connection", "keep-alive")
                     resp_bytes = resp_body.encode("utf-8") if isinstance(resp_body, str) else resp_body
