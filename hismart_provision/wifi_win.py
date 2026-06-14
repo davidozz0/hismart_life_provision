@@ -13,6 +13,8 @@ _log = get_logger("hismart.wifi")
 class WindowsWiFi:
     """Manage WiFi connections on Windows using netsh."""
 
+    _temp_profiles: list[str] = []
+
     @staticmethod
     def _run_netsh(args: list[str]) -> str:
         """Run a netsh command and return stdout."""
@@ -163,6 +165,7 @@ class WindowsWiFi:
                 capture_output=True, text=True, timeout=10,
             )
             _log.debug("netsh add profile: %s", result.stdout.strip())
+            WindowsWiFi._temp_profiles.append(profile_name)
         finally:
             os.unlink(profile_path)
 
@@ -207,6 +210,16 @@ class WindowsWiFi:
             ["netsh", "wlan", "delete", "profile", f"name={profile_name}"],
             capture_output=True, text=True, timeout=10,
         )
+
+    @staticmethod
+    def cleanup_profiles() -> None:
+        """Delete all temporary WiFi profiles created by this session."""
+        for name in WindowsWiFi._temp_profiles:
+            subprocess.run(
+                ["netsh", "wlan", "delete", "profile", f"name={name}"],
+                capture_output=True, text=True, timeout=10,
+            )
+        WindowsWiFi._temp_profiles.clear()
 
     @staticmethod
     def get_gateway() -> str | None:

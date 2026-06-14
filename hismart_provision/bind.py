@@ -50,19 +50,17 @@ class DeviceBinder:
         if regtoken:
             body["device"]["regtoken"] = regtoken
 
-        # Try device-specific URL first (from status response), then generic
-        urls = []
-        if device_service_url:
-            urls.append(f"https://{device_service_url}/apiv1/devices.json")
-        urls.append(f"{AYLA_DEVICE_BASE_URL}/apiv1/devices.json")
-
-        last_error = None
-        for url in urls:
+        # Try multiple URL variants
+        for path in [
+            "apiv1/devices.json",
+            "apiv1/devices.json?regtype=APMode",
+            f"apiv1/dsns/{dsn}/register.json",
+        ]:
+            url = f"{AYLA_DEVICE_BASE_URL}/{path}"
             try:
                 result = self._auth.api_post(url, body, base_url="")
-                _log.info("Device bound via %s!", url[:60])
+                _log.info("Device bound via %s!", path)
                 return result
             except RuntimeError as e:
-                last_error = e
-                _log.debug("Bind failed via %s: %s", url[:60], e)
-        raise last_error or RuntimeError("Bind failed on all URLs")
+                _log.debug("Bind failed via %s: %s", path, str(e)[:100])
+        raise RuntimeError("Bind failed on all URL variants")

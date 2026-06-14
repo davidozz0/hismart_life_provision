@@ -1,46 +1,76 @@
-[18:28:24] INFO hismart POST https://user-field-eu.aylanetworks.com/users/sign_in.json
-[18:28:24] DEBUG hismart Login body: user.email=d.davidozzo@gmail.com app_id=Hisense-mw-id
-[18:28:24] INFO hismart Login OK. Token expires in 86400s
-[18:28:24] INFO hismart Scanning WiFi networks...
-[18:28:27] INFO hismart Found 10 total networks, 1 Hisense device(s)
-[18:28:27] INFO hismart   Device: HiSmart-01-ca2c4f956487 (signal: 100%)
-[18:28:27] INFO hismart Connecting to device hotspot: HiSmart-01-ca2c4f956487 (timeout=20s)
-[18:28:27] INFO hismart Connecting to WiFi: HiSmart-01-ca2c4f956487 (has password: False, timeout: 20s)
-[18:28:27] DEBUG hismart netsh add profile: Profilo opencode_temp_HiSmart-01-ca2c4f956487 aggiunto all'interfaccia Wi-Fi.
-[18:28:28] DEBUG hismart netsh connect: Richiesta di connessione completata.
-[18:28:29] INFO hismart Successfully connected to HiSmart-01-ca2c4f956487
-[18:28:29] INFO hismart Connected to device HiSmart-01-ca2c4f956487
-[18:28:32] WARNING hismart Could not detect gateway IP, using default 192.168.0.1
-[18:28:35] INFO hismart Fetching device info: http://192.168.0.1/status.json
-[18:28:35] INFO hismart Device status response: {'DSN': 'AC000W011914165', 'dsn': 'AC000W011914165', 'model': 'AY008RTK1', 'api_version': '1.0', 'device_service': 'Smart-1-110-eu-483519e9-device.aylanetworks.com', 'mac': 'ca:2c:4f:95:64:87', 'last_connect_mtime': 0, 'mtime': 2572550, 'version': 'ADA-ameba 1.4.3-beta', 'build': 'ADA 1.4.3-beta ameba 2018-03-28 19:20:06 8f40fe89d', 'features': ['rsa-ke']}
-[18:28:35] INFO hismart Device DSN: AC000W011914165
-[18:28:35] INFO hismart Generating RSA-1024 key pair...
-[18:28:35] INFO hismart Phone IP on device network: 192.168.0.101
-[18:28:35] INFO hismart Starting secure LAN server on port 10275
-[18:28:35] INFO hismart Sending local_reg to device: http://192.168.0.1/local_reg.json
-[18:28:35] DEBUG hismart local_reg body: ip=192.168.0.101 port=10275
-[18:28:35] INFO hismart local_reg accepted (HTTP 202)
-[18:28:35] INFO hismart Waiting for key exchange (30s)...
-[18:28:35] INFO hismart POST /local_lan/key_exchange.json (271B) headers: {'Host': '192.168.0.101', 'Content-Length': '271', 'Content-Type': 'application/json'}
-[18:28:35] INFO hismart   body hex: 7b226b65795f65786368616e6765223a7b22766572223a312c2272616e646f6d5f31223a2243634f682b4f4f336f66695877714834222c2274696d655f31223a32353732363137313438333233312c2270726f746f223a312c22736563223a224854346b
-[18:28:35] INFO hismart   body txt: {"key_exchange":{"ver":1,"random_1":"CcOh+OO3ofiXwqH4","time_1":25726171483231,"proto":1,"sec":"HT4k1uhZnWpRPdq/El0glRZamYFmUOk9UQXHi6SJIMu9bifN8w6MYv71EvAQiIpGLHcxVHZQfOillChHpQuf+b4pYGo097eHsR40P47a
-[18:28:35] INFO hismart Key exchange received: ver=1 proto=1 random_1=CcOh+OO3ofiXwqH4
-[18:28:35] DEBUG hismart Full key exchange: {'key_exchange': {'ver': 1, 'random_1': 'CcOh+OO3ofiXwqH4', 'time_1': 25726171483231, 'proto': 1, 'sec': 'HT4k1uhZnWpRPdq/El0glRZamYFmUOk9UQXHi6SJIMu9bifN8w6MYv71EvAQiIpGLHcxVHZQfOillChHpQuf+b4pYGo097eHsR40P47aZlt2OqeXymGdn0mbvnPlptEoBd5kh/86Vebx/EGzW7TFZEDIXWlOtN4VDPNO0WSapwI='}}
-[18:28:35] INFO hismart RSA decrypted bLanKey: 32 bytes
-[18:28:35] INFO hismart Session keys derived: app_crypto=32 dev_crypto=32 bytes
-[18:28:35] INFO hismart Session keys derived successfully
-[18:28:35] INFO hismart Key exchange response: random_2=ZeKB8vXlgwqs1jNm time_2=297926640000000
-[18:28:35] DEBUG hismart DEV->PC POST /local_lan/key_exchange.json
-[18:28:35] INFO hismart Key exchange done. Waiting for device to push status...
-[18:28:35] DEBUG hismart DEV->PC GET /local_lan/commands.json
-[18:28:50] INFO hismart Queued WiFi connect command (id=1): wifi_connect.json?ssid=FASTWEB-Z7EUHL&key=NGX7AS92SG&setup_token=HRoeAXzk
-[18:28:50] INFO hismart WiFi command queued. Waiting for device to pick it up...
-[18:29:05] INFO hismart Secure LAN server stopped
-[18:29:05] INFO hismart Secure setup complete
-[18:29:05] INFO hismart Polling: https://ads-eu.aylanetworks.com/apiv1/devices/connected.json?dsn=AC000W011914165&setup_token=HRoeAXzk
-[18:29:06] INFO hismart Device confirmed! (attempt 1)
-[18:29:06] INFO hismart Binding device: dsn=AC000W011914165
-[18:29:10] INFO hismart Connecting to WiFi: FASTWEB-Z7EUHL (has password: True, timeout: 20s)
-[18:29:10] DEBUG hismart netsh add profile: Profilo opencode_temp_FASTWEB-Z7EUHL aggiunto all'interfaccia Wi-Fi.
-[18:29:11] DEBUG hismart netsh connect: Richiesta di connessione completata.
-[18:29:12] INFO hismart Successfully connected to FASTWEB-Z7EUHL
+[21:42:03.153] INFO hismart STEP 1/9: LOGIN to Ayla Cloud
+[21:42:03.153] INFO hismart POST https://user-field-eu.aylanetworks.com/users/sign_in.json
+[21:42:03.153] DEBUG hismart Login body: user.email=d.davidozzo@gmail.com app_id=Hisense-mw-id
+[21:42:03.466] INFO hismart Login OK. Token expires in 86400s
+[21:42:03.466] INFO hismart STEP 2/9: SCAN for Hisense devices
+[21:42:03.466] INFO hismart Scanning WiFi networks...
+[21:42:06.581] INFO hismart Found 8 total networks, 1 Hisense device(s)
+[21:42:06.581] INFO hismart   Device: HiSmart-01-ca2c4f956487 (signal: 100%)
+[21:42:06.581] INFO hismart STEP 3/9: CONNECT to device hotspot
+[21:42:06.581] INFO hismart Connecting to device hotspot: HiSmart-01-ca2c4f956487 (timeout=20s)
+[21:42:06.581] INFO hismart Connecting to WiFi: HiSmart-01-ca2c4f956487 (has password: False, timeout: 20s)
+[21:42:06.641] DEBUG hismart netsh add profile: Profilo opencode_temp_HiSmart-01-ca2c4f956487 aggiunto all'interfaccia Wi-Fi.
+[21:42:07.749] DEBUG hismart netsh connect: Richiesta di connessione completata.
+[21:42:08.370] INFO hismart Successfully connected to HiSmart-01-ca2c4f956487
+[21:42:08.371] INFO hismart Connected to device HiSmart-01-ca2c4f956487
+[21:42:11.383] WARNING hismart Could not detect gateway IP, using default 192.168.0.1
+[21:42:11.383] INFO hismart STEP 4/9: GET device information
+[21:42:11.383] INFO hismart Fetching device info: http://192.168.0.1/status.json
+[21:42:11.423] INFO hismart Device status response: {'DSN': 'AC000W011914165', 'dsn': 'AC000W011914165', 'model': 'AY008RTK1', 'api_version': '1.0', 'device_service': 'Smart-1-110-eu-483519e9-device.aylanetworks.com', 'mac': 'ca:2c:4f:95:64:87', 'last_connect_mtime': 0, 'mtime': 39929, 'version': 'ADA-ameba 1.4.3-beta', 'build': 'ADA 1.4.3-beta ameba 2018-03-28 19:20:06 8f40fe89d', 'features': ['rsa-ke']}
+[21:42:11.423] INFO hismart Device DSN: AC000W011914165
+[21:42:11.423] INFO hismart STEP 5/9: SEND Wi-Fi credentials (SECURE SETUP)
+[21:42:11.423] INFO hismart Setup token: UQMkVrhH
+[21:42:11.423] INFO hismart Generating RSA-1024 key pair...
+[21:42:11.434] INFO hismart Phone IP: 192.168.0.100
+[21:42:11.439] INFO hismart Starting secure LAN server on port 10275
+[21:42:11.439] INFO hismart HTTP server started on port 10275
+[21:42:11.439] INFO hismart Queued WiFi connect command (id=1): wifi_connect.json?ssid=FASTWEB-Z7EUHL&key=NGX7AS92SG&setup_token=UQMkVrhH
+[21:42:11.439] INFO hismart WiFi command queued (id=1)
+[21:42:11.439] INFO hismart Sending local_reg to http://192.168.0.1/local_reg.json
+[21:42:11.440] INFO hismart Sending local_reg to device: http://192.168.0.1/local_reg.json
+[21:42:11.440] DEBUG hismart local_reg body: ip=192.168.0.100 port=10275
+[21:42:11.494] INFO hismart local_reg accepted (HTTP 202)
+[21:42:11.494] INFO hismart Waiting for key exchange (POST to our /local_lan/key_exchange.json)...
+[21:42:11.669] INFO hismart POST /local_lan/key_exchange.json (271B) headers: {'Host': '192.168.0.100', 'Content-Length': '271', 'Content-Type': 'application/json'}
+[21:42:11.669] INFO hismart   body hex: 7b226b65795f65786368616e6765223a7b22766572223a312c2272616e646f6d5f31223a227549384e466345634452585349413056222c2274696d655f31223a34303030323134383332323838332c2270726f746f223a312c22736563223a224c666672
+[21:42:11.669] INFO hismart   body txt: {"key_exchange":{"ver":1,"random_1":"uI8NFcEcDRXSIA0V","time_1":40002148322883,"proto":1,"sec":"LffrNCH7+KYb0R9Md93rCd6R9PGqEvW2W5ldMy8K1BgG2x9htmm4Tn+0kvBwCr3JVu4+rZgrNyL/t+cHPCZXB3M8EE2aR4vydfi+sIuW
+[21:42:11.670] INFO hismart Key exchange received: ver=1 proto=1 random_1=uI8NFcEcDRXSIA0V
+[21:42:11.670] DEBUG hismart Full key exchange: {'key_exchange': {'ver': 1, 'random_1': 'uI8NFcEcDRXSIA0V', 'time_1': 40002148322883, 'proto': 1, 'sec': 'LffrNCH7+KYb0R9Md93rCd6R9PGqEvW2W5ldMy8K1BgG2x9htmm4Tn+0kvBwCr3JVu4+rZgrNyL/t+cHPCZXB3M8EE2aR4vydfi+sIuWe/T9IVVL1+Z3KanH9tCMOX1+FjM6Lhe5mnzZg2rZEYJa/0GVeaHGqeCzO+tFCUQCii0='}}
+[21:42:11.670] INFO hismart RSA decrypted bLanKey: 32 bytes
+[21:42:11.670] INFO hismart Session keys derived: app_crypto=32 dev_crypto=32 bytes
+[21:42:11.670] INFO hismart Session keys derived successfully
+[21:42:11.670] INFO hismart Key exchange response: random_2=O8uAygq2m7ImVwS8 time_2=309542546000000
+[21:42:11.670] DEBUG hismart DEV->PC POST /local_lan/key_exchange.json (HTTP/1.1)
+[21:42:11.670] INFO hismart Key exchange OK. Device will poll GET /local_lan/commands.json
+[21:42:12.090] INFO hismart Sending command (cmd_id=1): {"cmds": [{"cmd": {"cmd_id": 1, "method": "POST", "resource": "wifi_connect.json?ssid=FASTWEB-Z7EUHL&key=NGX7AS92SG&setu
+[21:42:12.090] INFO hismart   encrypted size=364B
+[21:42:12.090] INFO hismart Responding HTTP 200, body=364B (first 80: 7b22656e63223a2273556c774d434f625373567270464d6843386b413449525667356473377854774d674e7a77415978794474477a734e70504b2f38543248624943625562457458756776316d5a6631)
+[21:42:12.090] DEBUG hismart DEV->PC GET /local_lan/commands.json (HTTP/1.1)
+[21:42:12.358] INFO hismart POST /local_lan/connect_status (108B) headers: {'Host': '192.168.0.100', 'Content-Length': '108', 'Content-Type': 'application/json'}
+[21:42:12.358] INFO hismart   body hex: 7b22656e63223a227870506337344f6947424e4d492b5a2b772b504f68612b32676e714d67555647796d786a554e556d714d303d222c227369676e223a224b584d33347a4a55744b4c7767554c49523043784939593264656933465245516a714276616b
+[21:42:12.358] INFO hismart   body txt: {"enc":"xpPc74OiGBNMI+Z+w+POha+2gnqMgUVGymxjUNUmqM0=","sign":"KXM34zJUtKLwgULIR0CxI9Y2dei3FREQjqBvakRJYxA="}
+[21:42:12.358] INFO hismart WiFi connect response: cmd_id=1 status=204
+[21:42:12.358] INFO hismart   Error: Unknown(204)
+[21:42:12.358] INFO hismart   Decrypted: {"seq_no":0,"data":{}}
+[21:42:12.358] DEBUG hismart DEV->PC POST /local_lan/connect_status?cmd_id=1&status=204 (HTTP/1.1)
+[21:42:56.685] INFO hismart Stopping server after 45s wait
+[21:42:57.136] INFO hismart Secure LAN server stopped
+[21:42:57.136] INFO hismart STEP 6/9: CONFIRM device on Ayla cloud
+[21:42:57.136] INFO hismart Polling: https://ads-eu.aylanetworks.com/apiv1/devices/connected.json?dsn=AC000W011914165&setup_token=UQMkVrhH
+[21:42:57.136] INFO hismart REQ GET https://ads-eu.aylanetworks.com/apiv1/devices/connected.json?dsn=AC000W011914165&setup_token=UQMkVrhH
+[21:42:57.136] DEBUG hismart   Headers: Authorization=auth_token ***
+[21:42:57.359] INFO hismart RES 200 (133B)
+[21:42:57.359] DEBUG hismart   Body: {"device": {"lan_ip": "192.168.1.22", "registration_type": "AP-Mode", "connected_at": "2026-06-14T19:42:24Z", "device_type": "Wifi"}}
+[21:42:57.359] INFO hismart Device confirmed! (attempt 1)
+[21:42:57.359] INFO hismart STEP 7/9: BIND device to account
+[21:42:57.359] INFO hismart Binding device: dsn=AC000W011914165
+[21:42:57.359] INFO hismart REQ POST https://ads-eu.aylanetworks.com/apiv1/devices.json
+[21:42:57.359] DEBUG hismart   Body: {"device": {"dsn": "AC000W011914165", "setup_token": "UQMkVrhH", "lat": "0.0", "lng": "0.0"}}
+[21:42:57.359] DEBUG hismart   Headers: Authorization=auth_token ***, Content-Type=application/json
+[21:42:57.836] INFO hismart RES 201 (1194B)
+[21:42:57.836] INFO hismart Device bound via apiv1/devices.json!
+[21:42:57.836] INFO hismart STEP 8/9: RESTORE Wi-Fi connection
+[21:43:01.937] INFO hismart Connecting to WiFi: FASTWEB-Z7EUHL (has password: True, timeout: 20s)
+[21:43:02.087] DEBUG hismart netsh add profile: Profilo opencode_temp_FASTWEB-Z7EUHL aggiunto all'interfaccia Wi-Fi.
+[21:43:03.202] DEBUG hismart netsh connect: Richiesta di connessione completata.
+[21:43:03.806] INFO hismart Successfully connected to FASTWEB-Z7EUHL

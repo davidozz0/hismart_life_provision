@@ -76,6 +76,8 @@ class AylaAuth:
     def api_get(self, path: str, base_url: str = AYLA_USER_BASE_URL) -> dict:
         """Make an authenticated GET request to Ayla API."""
         url = f"{base_url}/{path.lstrip('/')}" if not path.startswith("http") else path
+        _log.info("REQ GET %s", url)
+        _log.debug("  Headers: Authorization=auth_token ***")
         req = urllib.request.Request(
             url,
             headers={
@@ -85,27 +87,38 @@ class AylaAuth:
         )
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                data = json.loads(resp.read().decode("utf-8"))
+                _log.info("RES %s (%dB)", resp.status, len(json.dumps(data)))
+                _log.debug("  Body: %s", json.dumps(data)[:500])
+                return data
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", errors="replace")
+            _log.error("RES %s: %s", e.code, body[:200])
             raise RuntimeError(f"API error (HTTP {e.code}): {body}") from e
 
     def api_post(self, path: str, data: dict, base_url: str = AYLA_USER_BASE_URL) -> dict:
         """Make an authenticated POST request to Ayla API."""
         url = f"{base_url}/{path.lstrip('/')}" if not path.startswith("http") else path
         body = json.dumps(data).encode("utf-8")
+        _log.info("REQ POST %s", url)
+        _log.debug("  Body: %s", json.dumps(data)[:300])
+        _log.debug("  Headers: Authorization=auth_token ***, Content-Type=application/json")
         req = urllib.request.Request(
             url, data=body,
             headers={
                 "Authorization": self.auth_header(),
                 "Content-Type": "application/json",
                 "Accept": "application/json",
+                "Connection": "Keep-Alive",
             },
             method="POST",
         )
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                data = json.loads(resp.read().decode("utf-8"))
+                _log.info("RES %s (%dB)", resp.status, len(json.dumps(data)))
+                return data
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", errors="replace")
+            _log.error("RES %s: %s", e.code, body[:200])
             raise RuntimeError(f"API error (HTTP {e.code}): {body}") from e

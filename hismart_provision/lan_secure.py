@@ -189,10 +189,12 @@ class SecureLANServer:
 
     def start(self) -> None:
         parent = self
-
         class _Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
             def log_message(self, fmt, *args):
-                _log.debug("DEV->PC %s %s", self.command, self.path)
+                _log.debug("DEV->PC %s %s (HTTP/%s)", self.command, self.path,
+                           "1.1" if self.request_version == "HTTP/1.1" else self.request_version.split("/")[-1])
 
             def _read_body(self) -> bytes:
                 cl = int(self.headers.get("Content-Length", 0))
@@ -229,8 +231,14 @@ class SecureLANServer:
                     self.wfile.write(b"")
 
                 elif path in ("/local_lan/wifi_scan_results.json",
-                                   "/local_lan/wifi_status.json",
-                                   "/local_lan/connect_status"):
+                                   "/local_lan/wifi_status.json"):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b"")
+
+                elif path == "/local_lan/connect_status":
+                    parent._handle_connect_status(body, self.path)
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
@@ -345,8 +353,6 @@ class SecureLANServer:
                 _log.debug("Status POST (raw): %s", data)
         except Exception as e:
             _log.debug("Status parse error: %s", e)
-
-            # Also check for unencrypted status
             try:
                 data = json.loads(body)
                 dsn = data.get("dsn") or data.get("device", {}).get("dsn")
@@ -356,37 +362,52 @@ class SecureLANServer:
             except Exception:
                 pass
 
+    def _handle_connect_status(self, body: bytes, path: str) -> None:
+        """Handle device response to WiFi connect command."""
+        import urllib.parse
+        qs = urllib.parse.parse_qs(path.split("?")[1] if "?" in path else "")
+        status = qs.get("status", ["?"])[0]
+        cmd_id = qs.get("cmd_id", ["?"])[0]
+        _log.info("WiFi connect response: cmd_id=%s status=%s", cmd_id, status)
+
+        error_map = {"0":"NoError","3":"InvalidKey","4":"SSIDNotFound","6":"IncorrectKey","7":"DHCP_IP"}
+        _log.info("  Error: %s", error_map.get(status, f"Unknown({status})"))
+
+        if not body:
+            return
+        try:
+            data = json.loads(body)
+            enc_str = data.get("enc", "")
+            if enc_str and self._enc.dev_crypto_key:
+                plain = self._enc.decrypt(enc_str)
+                if plain:
+                    _log.info("  Decrypted: %s", plain[:300])
+                else:
+                    _log.warning("  Failed to decrypt")
+        except Exception as e:
+            _log.debug("  Parse error: %s", e)
+
     def _handle_commands(self, handler) -> None:
         """Respond to device polling for commands."""
         if self._commands:
             cmd = self._commands.pop(0)
+            # getPayload() wraps in {"cmds":[{"cmd":{...}}]}
             inner = json.dumps({"cmds": [{"cmd": cmd}]})
+            _log.info("Sending command (cmd_id=%s): %s", cmd.get("cmd_id"), inner[:120])
 
             if self._enc.app_crypto_key:
                 payload = self._enc.encrypt_and_sign(inner)
-                _log.info("Sending encrypted command (id=%d) size=%dB", cmd.get("id"), len(payload))
-
-                # Self-test: decrypt using APP keys (what the device uses to decrypt our messages)
-                try:
-                    wrapper = json.loads(payload)
-                    import base64 as b64
-                    encrypted = b64.b64decode(wrapper["enc"])
-                    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-                    cipher = Cipher(algorithms.AES(self._enc.app_crypto_key), modes.CBC(self._enc.app_iv_seed))
-                    decryptor = cipher.decryptor()
-                    decrypted = decryptor.update(encrypted) + decryptor.finalize()
-                    decrypted = decrypted.rstrip(b"\x00")
-                    text = decrypted.decode("utf-8")
-                    _log.info("Self-decrypt OK: %s", text[:120])
-                except Exception as e:
-                    _log.error("Self-decrypt FAILED: %s", e)
+                _log.info("  encrypted size=%dB", len(payload))
             else:
                 payload = inner
-                _log.info("Sending plaintext command (id=%d)", cmd.get("id"))
 
             resp = payload.encode("utf-8")
-            handler.send_response(200)
+            more = len(self._commands) > 0
+            status = 206 if more else 200
+            _log.info("Responding HTTP %d, body=%dB (first 80: %s)", status, len(resp), resp[:80].hex())
+            handler.send_response(status)
             handler.send_header("Content-Type", "application/json")
+            handler.send_header("Connection", "keep-alive")
             handler.send_header("Content-Length", str(len(resp)))
             handler.end_headers()
             handler.wfile.write(resp)
@@ -403,11 +424,11 @@ class SecureLANServer:
         self._cmd_id += 1
         resource = f"wifi_connect.json?{urlencode({'ssid': ssid, 'key': key, 'setup_token': setup_token})}"
         cmd = {
-            "id": self._cmd_id,
+            "cmd_id": self._cmd_id,
             "method": "POST",
             "resource": resource,
+            "data": "none",
             "uri": "/local_lan/connect_status",
-            "data": None,  # Java sends "none" which is null in JSON
         }
         self._commands.append(cmd)
         _log.info("Queued WiFi connect command (id=%d): %s", self._cmd_id, resource[:80])
@@ -420,8 +441,8 @@ class SecureLANServer:
             "id": self._cmd_id,
             "method": "GET",
             "resource": "status.json",
+            "data": None,
             "uri": "/local_lan/status.json",
-            "data": None,  # Java sends null, not empty string
         }
         self._commands.append(cmd)
         _log.info("Queued status request command (id=%d)", self._cmd_id)

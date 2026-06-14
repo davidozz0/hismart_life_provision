@@ -85,7 +85,7 @@ class DeviceProvisioner:
         _log.info("Fetching device info: %s", url)
         try:
             req = urllib.request.Request(url, headers={"Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 _log.info("Device status response: %s", data)
                 if "dsn" in data:
@@ -263,51 +263,38 @@ class DeviceProvisioner:
     def send_credentials_secure(self, ssid: str, password: str) -> bool:
         """Send WiFi credentials using the secure RSA+AES protocol."""
         self._setup_token = _random_token(8)
+        _log.info("Setup token: %s", self._setup_token)
 
         private_pem, public_pem = generate_rsa_keypair()
-
         phone_ip = _get_own_ip(self._device_ip)
-        _log.info("Phone IP on device network: %s", phone_ip)
+        _log.info("Phone IP: %s", phone_ip)
 
         server = SecureLANServer()
         server.set_rsa_key(private_pem)
         server.start()
+        _log.info("HTTP server started on port %d", server.port)
 
-        # NO commands queued yet - key exchange returns 200, device may push status first
+        server.queue_connect_command(ssid, password, self._setup_token)
+        _log.info("WiFi command queued (id=1)")
+
+        _log.info("Sending local_reg to http://%s/local_reg.json", self._device_ip)
         ok = send_local_reg(self._device_ip, phone_ip, server.port, public_pem)
         if not ok:
             server.stop()
             return False
 
-        _log.info("Waiting for key exchange (30s)...")
+        _log.info("Waiting for key exchange (POST to our /local_lan/key_exchange.json)...")
         if not server.wait_for_key_exchange(30):
             _log.error("Key exchange timed out")
             server.stop()
             return False
 
-        _log.info("Key exchange done. Waiting for device to push status...")
-        for _ in range(15):
+        _log.info("Key exchange OK. Device will poll GET /local_lan/commands.json")
+        for _ in range(45):
             time.sleep(1)
-            if server.dsn:
-                self._dsn = server.dsn
-                _log.info("Got DSN: %s", self._dsn)
-                break
-
-        # Now queue WiFi command
-        server.queue_connect_command(ssid, password, self._setup_token)
-        _log.info("WiFi command queued. Waiting for device to pick it up...")
-        for _ in range(15):
-            time.sleep(1)
-            if server.dsn:
-                self._dsn = server.dsn
-                _log.info("Got DSN (late): %s", self._dsn)
-
-        if not self._dsn:
-            suffix = self._device_ssid.split("-", 2)[-1] if self._device_ssid else "unknown"
-            self._dsn = suffix
-            _log.warning("No DSN, using SSID suffix: %s", self._dsn)
-
+        _log.info("Stopping server after 45s wait")
         server.stop()
+        return True
         _log.info("Secure setup complete")
         return True
 

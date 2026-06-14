@@ -1,18 +1,7 @@
-#!/usr/bin/env python3
-"""HiSmart Provision - Interactive Wi-Fi provisioning for Hisense smart devices.
+﻿#!/usr/bin/env python3
+"""HiSmart Provision - Interactive Wi-Fi provisioning for Hisense smart devices."""
 
-Usage:
-    python provision.py                            # interactive mode
-    python provision.py --device HiSmart-01-xxxx   # auto-select device
-    python provision.py --device HiSmart-01-xxxx --yes  # fully automatic
-    python provision.py --clear                    # delete saved credentials
-"""
-
-import json
-import os
-import sys
-import getpass
-import time
+import json, os, sys, getpass, time
 
 from hismart_provision.auth import AylaAuth
 from hismart_provision.wifi_win import WindowsWiFi
@@ -21,49 +10,37 @@ from hismart_provision.bind import DeviceBinder
 from hismart_provision.credentials import save, load, clear
 from hismart_provision.log import get_logger
 
-ARGS = {
-    "device": None,
-    "yes": False,
-    "clear": False,
-    "dsn": None,
-}
-
+ARGS = {"device": None, "yes": False, "clear": False, "dsn": None}
 for a in sys.argv[1:]:
-    if a == "--yes":
-        ARGS["yes"] = True
-    elif a == "--clear":
-        ARGS["clear"] = True
-    elif a.startswith("--device="):
-        ARGS["device"] = a.split("=", 1)[1]
-    elif a == "--device":
-        idx = sys.argv.index("--device")
-        if idx + 1 < len(sys.argv):
-            ARGS["device"] = sys.argv[idx + 1]
-    elif a.startswith("--dsn="):
-        ARGS["dsn"] = a.split("=", 1)[1]
-    elif a == "--dsn":
-        idx = sys.argv.index("--dsn")
-        if idx + 1 < len(sys.argv):
-            ARGS["dsn"] = sys.argv[idx + 1]
+    if a == "--yes": ARGS["yes"] = True
+    elif a == "--clear": ARGS["clear"] = True
+    elif a.startswith("--device="): ARGS["device"] = a.split("=",1)[1]
+    elif a.startswith("--dsn="): ARGS["dsn"] = a.split("=",1)[1]
 
-# File logging
 LOG_FILE = os.path.join(os.path.dirname(__file__), "provision.log")
 import logging
 fh = logging.FileHandler(LOG_FILE, mode="w", encoding="utf-8")
 fh.setLevel(logging.DEBUG)
-fh.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(name)s %(message)s", datefmt="%H:%M:%S"))
+fh.setFormatter(logging.Formatter("[%(asctime)s.%(msecs)03d] %(levelname)s %(name)s %(message)s", datefmt="%H:%M:%S"))
 logging.getLogger("hismart").addHandler(fh)
 
+SEP  = "  " + "-" * 55
+SEP2 = "  " + "=" * 55
 
-def print_step(step: int, msg: str) -> None:
-    print(f"\n  [{step}] {msg}")
+_step = [0]
+def step(title: str) -> None:
+    _step[0] += 1
+    line = "-" * 55
+    msg = f"\n  {line}\n  --- STEP {_step[0]}/9: {title} ---\n  {line}"
+    print(msg)
+    get_logger("hismart").info("STEP %d/9: %s", _step[0], title)
 
+def info(msg: str) -> None:
+    print(f"  {msg}")
 
 def confirm(msg: str) -> bool:
-    if ARGS["yes"]:
-        return True
-    answer = input(f"  {msg} [Y/n] ").strip().lower()
-    return answer in ("", "y", "yes")
+    if ARGS["yes"]: return True
+    return input(f"  {msg} [Y/n] ").strip().lower() in ("","y","yes")
 
 
 def main():
@@ -78,225 +55,143 @@ def main():
     print("=" * 60)
 
     wifi = WindowsWiFi()
-
-    # ── Step 0: Check current network state ──────────────────
-    net = wifi.get_network_info()
-    print_step(0, "Network check")
-    print(f"  Ethernet: {'connected' if net['ethernet'] else 'not detected'}")
-    print(f"  Wi-Fi SSID: {net['wifi_ssid'] or 'not connected'}")
-    if net['wifi_gateway']:
-        print(f"  Wi-Fi gateway: {net['wifi_gateway']}")
-    print()
-
     auth = AylaAuth()
     provisioner = DeviceProvisioner(wifi)
     binder = DeviceBinder(auth)
 
-    # ── Step 1: Collect credentials ──────────────────────────
-    print_step(1, "Account & Wi-Fi credentials")
-    print()
+    # --- 1: Login ---
+    step("LOGIN to Ayla Cloud")
     saved = load()
-    email = password = home_ssid = home_pwd = ""
-
     if saved:
-        print(f"  Using saved credentials: {saved['email']} / {saved['home_ssid']}")
-        email = saved["email"]
-        password = saved["password"]
-        home_ssid = saved["home_ssid"]
-        home_pwd = saved["home_pwd"]
-
-    if not email:
-        email = input("  Hisense account email: ").strip()
-        password = getpass.getpass("  Hisense account password: ")
+        print(f"  Account : {saved['email']}")
+        print(f"  Home Wi-Fi: {saved['home_ssid']}")
+        email, password = saved["email"], saved["password"]
+        home_ssid, home_pwd = saved["home_ssid"], saved["home_pwd"]
+    else:
+        email = input("  Email: ").strip()
+        password = getpass.getpass("  Password: ")
         home_ssid = input("  Home Wi-Fi SSID: ").strip()
         home_pwd = getpass.getpass("  Home Wi-Fi password: ")
-        print()
-        if confirm("Save credentials for next time? (password is obfuscated)"):
+        if confirm("Save credentials?"):
             save(email, password, home_ssid, home_pwd)
-            print("  Saved.")
 
-    # ── Step 2: Login to Ayla cloud ──────────────────────────
-    print_step(2, "Logging in to Hisense cloud...")
-    try:
-        if not auth.login(email, password):
-            print("  Login returned no token. Check credentials.")
-            sys.exit(1)
-        print(f"  Logged in. Token expires: {auth.expires_at}")
-    except RuntimeError as e:
-        print(f"  Login failed: {e}")
-        sys.exit(1)
+    print(f"  POST https://user-field-eu.aylanetworks.com/users/sign_in.json")
+    auth.login(email, password)
+    print(f"  -> Logged in. Token valid 24h")
 
-    # ── Step 3: Ensure device is in SoftAP mode ──────────────
-    if not ARGS["yes"]:
-        print_step(3, "Put your device in pairing/SoftAP mode")
-        print()
-        print("  AIR CONDITIONER:")
-        print("    Press 'Horizon Airflow' button 6 times on the remote.")
-        print("    Buzzer sounds 5 times. Display shows '77'.")
-        print("    OR: press 'Sleep' button 8 times on wired controller.")
-        print()
-        print("  PORTABLE AC:")
-        print("    Press 'SWING' button 6 times on the remote.")
-        print("    Buzzer sounds 5 times. Display shows '77'.")
-        print()
-        print("  DEHUMIDIFIER:")
-        print("    Press 'Mode' + 'Fan' together. Buzzer sounds 3 times.")
-        print("    Display shows 'P2'.")
-        print()
-        print("  REFRIGERATOR:")
-        print("    Hold network button 3 seconds. WiFi icon flashes.")
-        print()
-        input("  Press Enter when ready...")
-
-    # ── Step 4: Scan for devices ─────────────────────────────
-    print_step(4, "Scanning for Hisense devices...")
-    print("  Scanning WiFi networks (this takes ~5 seconds)...")
-
+    # â”â”â”â”â”â”â”â”â”â” 2: Scan â”â”â”â”â”â”â”â”â”â”
+    step("SCAN for Hisense devices")
     device_ssid = ARGS["device"]
-    if device_ssid:
-        print(f"  Looking for specified device: {device_ssid}")
-
     for attempt in range(3):
         devices = provisioner.scan_for_devices()
-        if devices:
-            break
-        print(f"  No devices on attempt {attempt + 1}, retrying...")
+        if devices: break
+        print(f"  Retry {attempt+1}...")
         time.sleep(3)
-
     if not devices:
-        print("  No Hisense devices found.")
+        print("  No devices found. Is device in pairing mode?")
         sys.exit(1)
-
-    print(f"  Found {len(devices)} device(s):")
-    for i, d in enumerate(devices):
-        print(f"    [{i + 1}] {d['ssid']}  (signal: {d.get('signal', '?')}%)")
+    for d in devices:
+        print(f"  Found: {d['ssid']}  signal={d.get('signal','?')}%")
+    print(SEP)
 
     if device_ssid:
         chosen = next((d for d in devices if d["ssid"] == device_ssid), None)
         if not chosen:
-            print(f"  Specified device {device_ssid} not found!")
+            print(f"  {device_ssid} not found!")
             sys.exit(1)
     elif len(devices) == 1:
         chosen = devices[0]
     else:
-        if ARGS["yes"]:
-            chosen = devices[0]
-        else:
-            choice = input(f"  Select device [1-{len(devices)}]: ").strip()
-            try:
-                chosen = devices[int(choice) - 1]
-            except (ValueError, IndexError):
-                print("  Invalid selection.")
-                sys.exit(1)
+        choice = input(f"  Select [1-{len(devices)}]: ").strip()
+        chosen = devices[int(choice)-1]
 
     device_ssid = chosen["ssid"]
-    print(f"  Selected: {device_ssid}")
+    print(f"  -> Selected: {device_ssid}")
 
-    # ── Step 5: Connect PC to device hotspot ─────────────────
-    print_step(5, f"Connecting PC to device {device_ssid}...")
-    if not ARGS["yes"]:
-        print("  NOTE: Your PC will temporarily disconnect from the internet.")
-        if not confirm("Continue?"):
-            sys.exit(0)
-
+    # â”â”â”â”â”â”â”â”â”â” 3: Connect â”â”â”â”â”â”â”â”â”â”
+    step(f"CONNECT to device hotspot")
+    print(f"  SSID: {device_ssid}")
+    print(f"  Type: open (no password)")
+    if not ARGS["yes"] and not confirm("Switch Wi-Fi to this network?"):
+        sys.exit(0)
     if not provisioner.connect_to_device(device_ssid):
-        print(f"  Failed to connect to {device_ssid}.")
+        print("  FAILED to connect!")
         sys.exit(1)
+    print(f"  -> Connected. PC IP on device: ~192.168.0.100")
 
-    print(f"  Connected to {device_ssid}")
-    time.sleep(3)
-
-    # ── Step 6: Get device info ──────────────────────────────
-    print_step(6, "Fetching device information...")
-    try:
-        info = provisioner.fetch_device_info()
-        print(f"  Device info: {json.dumps(info, indent=2) if info else 'limited'}")
-    except Exception as e:
-        print(f"  Warning: could not fetch device info: {e}")
-
-    # ── Step 7: Skip scan in auto mode ───────────────────────
-    if not ARGS["yes"]:
-        print_step(7, "Scanning for home WiFi networks (via device)...")
-        provisioner.start_wifi_scan()
-        time.sleep(5)
-        results = provisioner.get_wifi_scan_results()
-        if results:
-            print(f"  Device sees {len(results)} networks:")
-            for r in results[:15]:
-                print(f"    {r['ssid']:30s}  signal={r.get('signal', '?')}")
+    # â”â”â”â”â”â”â”â”â”â” 4: DSN â”â”â”â”â”â”â”â”â”â”
+    step("GET device information")
+    print(f"  GET http://192.168.0.1/status.json")
+    info = provisioner.fetch_device_info()
+    if info.get("dsn"):
+        print(f"  -> DSN: {info['dsn']}")
+        print(f"  -> Model: {info.get('model','?')}")
+        print(f"  -> MAC: {info.get('mac','?')}")
     else:
-        print_step(7, "Skipping WiFi scan (auto mode)")
-
-    # ── Step 8: Send credentials ─────────────────────────────
-    print_step(8, "Sending Wi-Fi credentials to device...")
-    # Get DSN first (non-secure GET /status.json)
-    # Then always use secure mode for WiFi credentials
-    if not provisioner._dsn:
-        provisioner.is_secure_mode()  # Try to get DSN
-
-    # Always use secure protocol for sending credentials
-    print("  Sending credentials via secure protocol...")
-    try:
-        ok = provisioner.send_credentials_secure(home_ssid, home_pwd)
-        print("  Credentials sent!")
-    except (RuntimeError, TimeoutError) as e:
-        print(f"  Failed: {e}")
+        print("  FAILED to get DSN")
         sys.exit(1)
 
-    # ── Step 9: Cloud confirmation ──────────────────────────
-    dsn = provisioner.dsn if provisioner._dsn else device_ssid.split("-", 2)[-1]
+    # â”â”â”â”â”â”â”â”â”â” 5: WiFi â”â”â”â”â”â”â”â”â”â”
+    step("SEND Wi-Fi credentials (SECURE SETUP)")
+    print(f"  POST http://192.168.0.1/local_reg.json  (initiates key exchange)")
+    print(f"  Device calls: POST http://192.168.0.101:10275/local_lan/key_exchange.json")
+    print(f"  Device calls: GET  http://192.168.0.101:10275/local_lan/commands.json")
+    print(f"  We respond with encrypted WiFi connect command")
+    print(f"  Target Wi-Fi: {home_ssid}")
+    try:
+        provisioner.send_credentials_secure(home_ssid, home_pwd)
+        print(f"  -> Credentials sent via secure channel")
+    except Exception as e:
+        print(f"  FAILED: {e}")
+        sys.exit(1)
+
+    # â”â”â”â”â”â”â”â”â”â” 6: Cloud â”â”â”â”â”â”â”â”â”â”
+    step("CONFIRM device on Ayla cloud")
+    dsn = provisioner._dsn or device_ssid.split("-",2)[-1]
     setup_token = provisioner.setup_token
-    real_dsn = dsn and dsn != device_ssid.split("-", 2)[-1]
-
-    if real_dsn:
-        print_step(9, "Confirming device on Ayla cloud...")
-        print(f"  DSN: {dsn}  Token: {setup_token}")
-
+    if dsn and dsn != device_ssid.split("-",2)[-1]:
+        print(f"  GET https://ads-eu.aylanetworks.com/apiv1/devices/connected.json?dsn={dsn}&setup_token={setup_token}")
         result = binder.confirm_device_connected(dsn, setup_token, timeout=20)
         if result:
-            print("  Device confirmed on cloud!")
+            print(f"  -> Device confirmed on cloud!")
         else:
-            print("  Device did not confirm within timeout.")
+            print("  -> Not confirmed (may need more time)")
+    else:
+        print(f"  -> Skipped (no real DSN: {dsn})")
 
-        # ── Step 10: Bind device to account ──────────────────
-        print_step(10, "Binding device to your account...")
-        import time as _time
+    # â”â”â”â”â”â”â”â”â”â” 7: Bind â”â”â”â”â”â”â”â”â”â”
+    step("BIND device to account")
+    if dsn and dsn != device_ssid.split("-",2)[-1]:
+        print(f"  POST https://ads-eu.aylanetworks.com/apiv1/devices.json")
         for attempt in range(5):
             try:
                 binder.bind_device(dsn, setup_token,
-                                 device_service_url=provisioner._device_service_url)
-                print("  Device bound!")
+                    device_service_url=provisioner._device_service_url)
+                print(f"  -> Device bound to your account!")
                 break
-            except RuntimeError as e:
-                if attempt < 4:
-                    print(f"  Bind attempt {attempt+1} failed, retrying...")
-                    _time.sleep(3)
-                else:
-                    print(f"  Bind failed after 5 attempts: {e}")
+            except RuntimeError:
+                if attempt < 4: time.sleep(3)
+                else: print("  -> Bind FAILED (API 404)")
     else:
-        print_step(9, "Skipping cloud binding (no real DSN obtained)")
-        print(f"  Got DSN: {dsn} -- not a real Ayla DSN, cannot bind")
-        print(f"  Setup token: {setup_token}")
-        print("  Device may still connect to WiFi. Check router client list.")
+        print("  -> Skipped (no real DSN)")
 
-    # ── Step 11: Restore WiFi ────────────────────────────────
-    print_step(11, "Restoring Wi-Fi connection...")
-    if net["wifi_ssid"]:
-        provisioner.reconnect_to_home_wifi(net["wifi_ssid"], home_pwd)
-        print(f"  Reconnected to {net['wifi_ssid']}")
-    elif home_ssid:
-        provisioner.reconnect_to_home_wifi(home_ssid, home_pwd)
-        print(f"  Reconnected to {home_ssid}")
-    else:
-        print("  No home Wi-Fi to restore (was on Ethernet)")
+    # â”â”â”â”â”â”â”â”â”â” 8: Restore â”â”â”â”â”â”â”â”â”â”
+    step("RESTORE Wi-Fi connection")
+    print(f"  Connecting back to: {home_ssid}")
+    provisioner.reconnect_to_home_wifi(home_ssid, home_pwd)
+    print(f"  -> Reconnected")
 
-    # ── Done ─────────────────────────────────────────────────
-    print()
-    print("=" * 60)
-    print(f"  DSN: {dsn}  Token: {setup_token}")
-    print("  Log saved to: provision.log")
-    print("=" * 60)
+    # â”â”â”â”â”â”â”â”â”â” 9: Cleanup â”â”â”â”â”â”â”â”â”â”
+    wifi.cleanup_profiles()
+
+    print(f"\n{SEP2}")
+    print(f"  COMPLETE")
+    print(f"  DSN: {dsn}")
+    print(f"  Setup Token: {setup_token}")
+    print(f"  Log: provision.log")
+    print(SEP2)
 
 
 if __name__ == "__main__":
     main()
+

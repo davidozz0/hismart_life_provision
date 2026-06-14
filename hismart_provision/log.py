@@ -14,7 +14,7 @@ def get_logger(name: str = "hismart") -> logging.Logger:
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(
-            "[%(asctime)s] %(levelname)s %(name)s %(message)s",
+            "[%(asctime)s.%(msecs)03d] %(levelname)s %(name)s %(message)s",
             datefmt="%H:%M:%S",
         ))
         _logger.handlers.clear()
