@@ -407,7 +407,7 @@ class SecureLANServer:
             "method": "POST",
             "resource": resource,
             "uri": "/local_lan/connect_status",
-            "data": "none",
+            "data": None,  # Java sends "none" which is null in JSON
         }
         self._commands.append(cmd)
         _log.info("Queued WiFi connect command (id=%d): %s", self._cmd_id, resource[:80])
@@ -421,7 +421,7 @@ class SecureLANServer:
             "method": "GET",
             "resource": "status.json",
             "uri": "/local_lan/status.json",
-            "data": "",
+            "data": None,  # Java sends null, not empty string
         }
         self._commands.append(cmd)
         _log.info("Queued status request command (id=%d)", self._cmd_id)

@@ -1,82 +1,9 @@
-[18:04:15] INFO hismart POST https://user-field-eu.aylanetworks.com/users/sign_in.json
-[18:04:15] DEBUG hismart Login body: user.email=d.davidozzo@gmail.com app_id=Hisense-mw-id
-[18:04:16] INFO hismart Login OK. Token expires in 86400s
-[18:04:16] INFO hismart Scanning WiFi networks...
-[18:04:19] INFO hismart Found 10 total networks, 1 Hisense device(s)
-[18:04:19] INFO hismart   Device: HiSmart-01-ca2c4f956487 (signal: 100%)
-[18:04:19] INFO hismart Connecting to device hotspot: HiSmart-01-ca2c4f956487 (timeout=20s)
-[18:04:19] INFO hismart Connecting to WiFi: HiSmart-01-ca2c4f956487 (has password: False, timeout: 20s)
-[18:04:19] DEBUG hismart netsh add profile: Profilo opencode_temp_HiSmart-01-ca2c4f956487 aggiunto all'interfaccia Wi-Fi.
-[18:04:20] DEBUG hismart netsh connect: Richiesta di connessione completata.
-[18:04:21] INFO hismart Successfully connected to HiSmart-01-ca2c4f956487
-[18:04:21] INFO hismart Connected to device HiSmart-01-ca2c4f956487
-[18:04:24] WARNING hismart Could not detect gateway IP, using default 192.168.0.1
-[18:04:27] INFO hismart Fetching device info: http://192.168.0.1/local_lan/status.json
-[18:04:28] WARNING hismart Could not fetch device info: HTTP Error 404: Not Found
-[18:04:28] INFO hismart Device returned 404 -> secure mode required
-[18:04:28] INFO hismart Generating RSA-1024 key pair...
-[18:04:28] INFO hismart Phone IP on device network: 192.168.0.101
-[18:04:28] INFO hismart Starting secure LAN server on port 10275
-[18:04:28] INFO hismart Queued status request command (id=1)
-[18:04:28] INFO hismart Sending local_reg to device: http://192.168.0.1/local_reg.json
-[18:04:28] DEBUG hismart local_reg body: ip=192.168.0.101 port=10275
-[18:04:28] INFO hismart local_reg accepted (HTTP 202)
-[18:04:28] INFO hismart Waiting for key exchange from device (30s)...
-[18:04:28] INFO hismart POST /local_lan/key_exchange.json (271B) headers: {'Host': '192.168.0.101', 'Content-Length': '271', 'Content-Type': 'application/json'}
-[18:04:28] INFO hismart   body hex: 7b226b65795f65786368616e6765223a7b22766572223a312c2272616e646f6d5f31223a2273444a72454b65773678436c4f2b7351222c2274696d655f31223a31313235323135313438333232392c2270726f746f223a312c22736563223a226742724b
-[18:04:28] INFO hismart   body txt: {"key_exchange":{"ver":1,"random_1":"sDJrEKew6xClO+sQ","time_1":11252151483229,"proto":1,"sec":"gBrK1mC1Ztzhdm7rX3fBSm0cg4vwQR/FnpNVS9zXbgCua7lEXP7WNR4u1D8aH/lxaBzCCQvQCwtrUo6saYMTgUixC7sQpjMVI9olq4bx
-[18:04:28] INFO hismart Key exchange received: ver=1 proto=1 random_1=sDJrEKew6xClO+sQ
-[18:04:28] DEBUG hismart Full key exchange: {'key_exchange': {'ver': 1, 'random_1': 'sDJrEKew6xClO+sQ', 'time_1': 11252151483229, 'proto': 1, 'sec': 'gBrK1mC1Ztzhdm7rX3fBSm0cg4vwQR/FnpNVS9zXbgCua7lEXP7WNR4u1D8aH/lxaBzCCQvQCwtrUo6saYMTgUixC7sQpjMVI9olq4bxRtSfl/jMYfqeztAMXbnDX2DEQur5o6qvzTFiAiDWHW4Lgqcj93eN5gh+PAcDWvM1ZpM='}}
-[18:04:28] INFO hismart RSA decrypted bLanKey: 32 bytes
-[18:04:28] INFO hismart Session keys derived: app_crypto=32 dev_crypto=32 bytes
-[18:04:28] INFO hismart Session keys derived successfully
-[18:04:28] INFO hismart Key exchange response: random_2=YMOHkCillmQcxJcu time_2=296479296000000
-[18:04:28] DEBUG hismart DEV->PC POST /local_lan/key_exchange.json
-[18:04:28] INFO hismart Key exchange complete. Querying device directly for DSN...
-[18:04:28] INFO hismart Sending encrypted command (id=1) size=256B
-[18:04:28] INFO hismart Self-decrypt OK: {"seq_no":0,"data":{"cmds": [{"cmd": {"id": 1, "method": "GET", "resource": "status.json", "uri": "/local_lan/status.jso
-[18:04:28] DEBUG hismart DEV->PC GET /local_lan/commands.json
-[18:04:29] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:29] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:30] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:30] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:31] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:31] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:32] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:32] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:33] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:33] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:34] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:34] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:35] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:35] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:36] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:36] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:37] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:37] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:38] DEBUG hismart Encrypted GET to http://192.168.0.1/local_lan/status.json
-[18:04:38] DEBUG hismart Status fetch error: HTTP Error 404: Not Found
-[18:04:38] INFO hismart Waiting for status push via LAN (up to 30s)...
-[18:05:08] WARNING hismart No DSN, using SSID suffix: ca2c4f956487
-[18:05:08] INFO hismart Sending encrypted WiFi credentials directly to device...
-[18:05:08] DEBUG hismart Encrypted POST to http://192.168.0.1/local_lan/connect_status (body: ssid=FASTWEB-Z7EUHL&key=NGX7AS92SG&setup_token=8EmnPO3o)
-[18:05:08] DEBUG hismart Request error: HTTP Error 404: Not Found
-[18:05:09] INFO hismart Secure LAN server stopped
-[18:05:09] INFO hismart Secure setup complete
-[18:05:09] INFO hismart Polling: https://ads-eu.aylanetworks.com/apiv1/devices/connected.json?dsn=ca2c4f956487&setup_token=8EmnPO3o
-[18:05:09] DEBUG hismart Poll 1: not yet (API error (HTTP 404): )
-[18:05:11] DEBUG hismart Poll 2: not yet (API error (HTTP 404): )
-[18:05:13] DEBUG hismart Poll 3: not yet (API error (HTTP 404): )
-[18:05:15] DEBUG hismart Poll 4: not yet (API error (HTTP 404): )
-[18:05:18] DEBUG hismart Poll 5: not yet (API error (HTTP 404): )
-[18:05:20] DEBUG hismart Poll 6: not yet (API error (HTTP 404): )
-[18:05:22] DEBUG hismart Poll 7: not yet (API error (HTTP 404): )
-[18:05:24] DEBUG hismart Poll 8: not yet (API error (HTTP 404): )
-[18:05:26] DEBUG hismart Poll 9: not yet (API error (HTTP 404): )
-[18:05:28] DEBUG hismart Poll 10: not yet (API error (HTTP 404): )
-[18:05:30] ERROR hismart Device did not confirm within 20s
-[18:05:30] INFO hismart Binding device: dsn=ca2c4f956487
-[18:05:35] INFO hismart Connecting to WiFi: FASTWEB-Z7EUHL (has password: True, timeout: 20s)
-[18:05:35] DEBUG hismart netsh add profile: Profilo opencode_temp_FASTWEB-Z7EUHL aggiunto all'interfaccia Wi-Fi.
-[18:05:36] DEBUG hismart netsh connect: Richiesta di connessione completata.
-[18:05:36] INFO hismart Successfully connected to FASTWEB-Z7EUHL
+[18:08:52] INFO hismart POST https://user-field-eu.aylanetworks.com/users/sign_in.json
+[18:08:52] DEBUG hismart Login body: user.email=d.davidozzo@gmail.com app_id=Hisense-mw-id
+[18:08:52] INFO hismart Login OK. Token expires in 86400s
+[18:08:52] INFO hismart Scanning WiFi networks...
+[18:08:56] INFO hismart Found 1 total networks, 0 Hisense device(s)
+[18:08:59] INFO hismart Scanning WiFi networks...
+[18:09:02] INFO hismart Found 1 total networks, 0 Hisense device(s)
+[18:09:05] INFO hismart Scanning WiFi networks...
+[18:09:08] INFO hismart Found 1 total networks, 0 Hisense device(s)

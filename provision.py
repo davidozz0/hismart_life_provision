@@ -249,34 +249,33 @@ def main():
         print(f"  Failed: {e}")
         sys.exit(1)
 
-    # ── Step 9: Internet check & cloud confirmation ──────────
-    print_step(9, "Confirming device on Ayla cloud...")
-    print("  Keeping Wi-Fi on device, using Ethernet for internet")
-
+    # ── Step 9: Cloud confirmation ──────────────────────────
     dsn = provisioner.dsn if provisioner._dsn else device_ssid.split("-", 2)[-1]
-    if not provisioner._dsn:
-        print(f"  Derived DSN: {dsn}")
-    # Override DSN if provided via command line
-    if ARGS["dsn"]:
-        dsn = ARGS["dsn"]
-        provisioner._dsn = dsn
-        print(f"  Using provided DSN: {dsn}")
     setup_token = provisioner.setup_token
-    print(f"  DSN: {dsn}  Token: {setup_token}")
+    real_dsn = dsn and dsn != device_ssid.split("-", 2)[-1]
 
-    result = binder.confirm_device_connected(dsn, setup_token, timeout=20)
-    if result:
-        print("  Device confirmed on cloud!")
+    if real_dsn:
+        print_step(9, "Confirming device on Ayla cloud...")
+        print(f"  DSN: {dsn}  Token: {setup_token}")
+
+        result = binder.confirm_device_connected(dsn, setup_token, timeout=20)
+        if result:
+            print("  Device confirmed on cloud!")
+        else:
+            print("  Device did not confirm within timeout.")
+
+        # ── Step 10: Bind device to account ──────────────────
+        print_step(10, "Binding device to your account...")
+        try:
+            binder.bind_device(dsn, setup_token)
+            print("  Device bound!")
+        except RuntimeError as e:
+            print(f"  Bind failed: {e}")
     else:
-        print("  Device did not confirm within timeout.")
-
-    # ── Step 10: Bind device to account ──────────────────────
-    print_step(10, "Binding device to your account...")
-    try:
-        binder.bind_device(dsn, setup_token)
-        print("  Device bound!")
-    except RuntimeError as e:
-        print(f"  Bind failed: {e}")
+        print_step(9, "Skipping cloud binding (no real DSN obtained)")
+        print(f"  Got DSN: {dsn} -- not a real Ayla DSN, cannot bind")
+        print(f"  Setup token: {setup_token}")
+        print("  Device may still connect to WiFi. Check router client list.")
 
     # ── Step 11: Restore WiFi ────────────────────────────────
     print_step(11, "Restoring Wi-Fi connection...")
