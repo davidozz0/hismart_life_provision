@@ -357,7 +357,8 @@ class SecureLANServer:
 
             if self._enc.app_crypto_key:
                 payload = self._enc.encrypt_and_sign(inner)
-                _log.info("Sending encrypted command (id=%d)", cmd.get("id"))
+                _log.info("Sending encrypted command (id=%d) size=%dB", cmd.get("id"), len(payload))
+                _log.debug("Encrypted payload: %s", payload[:200])
             else:
                 payload = inner
                 _log.info("Sending plaintext command (id=%d)", cmd.get("id"))
