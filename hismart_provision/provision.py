@@ -79,19 +79,23 @@ class DeviceProvisioner:
         return ok
 
     def fetch_device_info(self) -> dict:
-        """Fetch device status/info from the device's HTTP API (non-secure path)."""
-        url = f"http://{self._device_ip}/local_lan/status.json"
+        """Fetch device status via direct HTTP GET (non-secure path)."""
+        url = f"http://{self._device_ip}/status.json"
         _log.info("Fetching device info: %s", url)
         try:
-            data = self._device_http_post(url, {})
-            _log.debug("Device info response: %s", data)
-            if "dsn" in data:
-                self._dsn = data["dsn"]
-                _log.info("Device DSN: %s", self._dsn)
-            return data
+            req = urllib.request.Request(url, headers={"Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                _log.info("Device status response: %s", data)
+                if "dsn" in data:
+                    self._dsn = data["dsn"]
+                    _log.info("Device DSN: %s", self._dsn)
+                return data
+        except urllib.error.HTTPError as e:
+            _log.debug("Device status: HTTP %d", e.code)
         except Exception as e:
-            _log.warning("Could not fetch device info: %s", e)
-            return {}
+            _log.debug("Device status error: %s", e)
+        return {}
 
     def start_wifi_scan(self) -> bool:
         """Command the device to start scanning for WiFi networks."""
@@ -229,19 +233,28 @@ class DeviceProvisioner:
 
     def is_secure_mode(self) -> bool:
         """Check if the device requires secure (RSA+AES) setup."""
-        url = f"http://{self._device_ip}/local_lan/status.json"
-        try:
-            req = urllib.request.Request(url, method="POST", data=b"{}",
-                headers={"Content-Type": "application/json", "Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
+        # Try GET first (what the app does), then POST as fallback
+        for method, body in [("GET", None), ("POST", b"{}")]:
+            url = f"http://{self._device_ip}/status.json"
+            try:
+                req = urllib.request.Request(url, data=body,
+                    headers={"Accept": "application/json"})
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    _log.info("Device status (non-secure): %s", data)
+                    if "dsn" in data:
+                        self._dsn = data["dsn"]
+                        _log.info("Got DSN from non-secure status: %s", self._dsn)
+                        return False
+                    return False
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    _log.info("Device returned 404 (method=%s) -> secure mode required", "GET" if body is None else "POST")
+                    return True
                 return False
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
-                _log.info("Device returned 404 -> secure mode required")
-                return True
-            return False
-        except Exception:
-            return False
+            except Exception:
+                continue
+        return False
 
     def send_credentials_secure(self, ssid: str, password: str) -> bool:
         """Send WiFi credentials using the secure RSA+AES protocol."""
