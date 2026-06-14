@@ -200,8 +200,9 @@ class SecureLANServer:
 
             def do_POST(self):
                 body = self._read_body()
-                # Log ALL requests including unhandled ones
-                _log.info("DEV->PC %s %s (body: %d bytes)", self.command, self.path, len(body))
+                _log.info("DEV->PC %s %s (%dB)", self.command, self.path, len(body))
+                if body and len(body) < 500:
+                    _log.debug("  body: %s", body[:300])
 
                 if self.path == "/local_lan/key_exchange.json":
                     resp_body = parent._handle_key_exchange(body)

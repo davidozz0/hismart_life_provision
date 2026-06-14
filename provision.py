@@ -25,6 +25,7 @@ ARGS = {
     "device": None,
     "yes": False,
     "clear": False,
+    "dsn": None,
 }
 
 for a in sys.argv[1:]:
@@ -38,6 +39,12 @@ for a in sys.argv[1:]:
         idx = sys.argv.index("--device")
         if idx + 1 < len(sys.argv):
             ARGS["device"] = sys.argv[idx + 1]
+    elif a.startswith("--dsn="):
+        ARGS["dsn"] = a.split("=", 1)[1]
+    elif a == "--dsn":
+        idx = sys.argv.index("--dsn")
+        if idx + 1 < len(sys.argv):
+            ARGS["dsn"] = sys.argv[idx + 1]
 
 # File logging
 LOG_FILE = os.path.join(os.path.dirname(__file__), "provision.log")
@@ -249,6 +256,11 @@ def main():
     dsn = provisioner.dsn if provisioner._dsn else device_ssid.split("-", 2)[-1]
     if not provisioner._dsn:
         print(f"  Derived DSN: {dsn}")
+    # Override DSN if provided via command line
+    if ARGS["dsn"]:
+        dsn = ARGS["dsn"]
+        provisioner._dsn = dsn
+        print(f"  Using provided DSN: {dsn}")
     setup_token = provisioner.setup_token
     print(f"  DSN: {dsn}  Token: {setup_token}")
 
