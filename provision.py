@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """HiSmart Provision - Interactive Wi-Fi provisioning for Hisense smart devices.
 
-Replicates the SoftAP provisioning flow from the Hi Smart Life Android app.
-Connects to the device's hotspot, sends your home Wi-Fi credentials,
-and binds the device to your Hisense/Ayla account.
-
 Usage:
-    python provision.py
+    python provision.py                            # interactive mode
+    python provision.py --device HiSmart-01-xxxx   # auto-select device
+    python provision.py --device HiSmart-01-xxxx --yes  # fully automatic
+    python provision.py --clear                    # delete saved credentials
 """
 
 import json
+import os
 import sys
 import getpass
 import time
@@ -19,6 +19,33 @@ from hismart_provision.wifi_win import WindowsWiFi
 from hismart_provision.provision import DeviceProvisioner
 from hismart_provision.bind import DeviceBinder
 from hismart_provision.credentials import save, load, clear
+from hismart_provision.log import get_logger
+
+ARGS = {
+    "device": None,
+    "yes": False,
+    "clear": False,
+}
+
+for a in sys.argv[1:]:
+    if a == "--yes":
+        ARGS["yes"] = True
+    elif a == "--clear":
+        ARGS["clear"] = True
+    elif a.startswith("--device="):
+        ARGS["device"] = a.split("=", 1)[1]
+    elif a == "--device":
+        idx = sys.argv.index("--device")
+        if idx + 1 < len(sys.argv):
+            ARGS["device"] = sys.argv[idx + 1]
+
+# File logging
+LOG_FILE = os.path.join(os.path.dirname(__file__), "provision.log")
+import logging
+fh = logging.FileHandler(LOG_FILE, mode="w", encoding="utf-8")
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(name)s %(message)s", datefmt="%H:%M:%S"))
+logging.getLogger("hismart").addHandler(fh)
 
 
 def print_step(step: int, msg: str) -> None:
@@ -26,12 +53,14 @@ def print_step(step: int, msg: str) -> None:
 
 
 def confirm(msg: str) -> bool:
+    if ARGS["yes"]:
+        return True
     answer = input(f"  {msg} [Y/n] ").strip().lower()
     return answer in ("", "y", "yes")
 
 
 def main():
-    if "--clear" in sys.argv:
+    if ARGS["clear"]:
         clear()
         print("Saved credentials deleted.")
         return
@@ -50,23 +79,16 @@ def main():
     print_step(1, "Account & Wi-Fi credentials")
     print()
     saved = load()
-    if saved:
-        print("  Saved credentials found:")
-        print(f"    Account:  {saved['email']}")
-        print(f"    Wi-Fi:    {saved['home_ssid']}")
-        print()
-        use_saved = confirm("Use saved credentials?")
-        if use_saved:
-            email = saved["email"]
-            password = saved["password"]
-            home_ssid = saved["home_ssid"]
-            home_pwd = saved["home_pwd"]
-        else:
-            saved = None
-            clear()
-            print("  Saved credentials deleted.")
+    email = password = home_ssid = home_pwd = ""
 
-    if not saved:
+    if saved:
+        print(f"  Using saved credentials: {saved['email']} / {saved['home_ssid']}")
+        email = saved["email"]
+        password = saved["password"]
+        home_ssid = saved["home_ssid"]
+        home_pwd = saved["home_pwd"]
+
+    if not email:
         email = input("  Hisense account email: ").strip()
         password = getpass.getpass("  Hisense account password: ")
         home_ssid = input("  Home Wi-Fi SSID: ").strip()
@@ -88,69 +110,80 @@ def main():
         sys.exit(1)
 
     # ── Step 3: Ensure device is in SoftAP mode ──────────────
-    print_step(3, "Put your device in pairing/SoftAP mode")
-    print()
-    print("  AIR CONDITIONER:")
-    print("    Press 'Horizon Airflow' button 6 times on the remote.")
-    print("    Buzzer sounds 5 times. Display shows '77'.")
-    print("    OR: press 'Sleep' button 8 times on wired controller.")
-    print()
-    print("  PORTABLE AC:")
-    print("    Press 'SWING' button 6 times on the remote.")
-    print("    Buzzer sounds 5 times. Display shows '77'.")
-    print()
-    print("  DEHUMIDIFIER:")
-    print("    Press 'Mode' + 'Fan' together. Buzzer sounds 3 times.")
-    print("    Display shows 'P2'.")
-    print()
-    print("  REFRIGERATOR:")
-    print("    Hold network button 3 seconds. WiFi icon flashes.")
-    print()
-    input("  Press Enter when ready...")
+    if not ARGS["yes"]:
+        print_step(3, "Put your device in pairing/SoftAP mode")
+        print()
+        print("  AIR CONDITIONER:")
+        print("    Press 'Horizon Airflow' button 6 times on the remote.")
+        print("    Buzzer sounds 5 times. Display shows '77'.")
+        print("    OR: press 'Sleep' button 8 times on wired controller.")
+        print()
+        print("  PORTABLE AC:")
+        print("    Press 'SWING' button 6 times on the remote.")
+        print("    Buzzer sounds 5 times. Display shows '77'.")
+        print()
+        print("  DEHUMIDIFIER:")
+        print("    Press 'Mode' + 'Fan' together. Buzzer sounds 3 times.")
+        print("    Display shows 'P2'.")
+        print()
+        print("  REFRIGERATOR:")
+        print("    Hold network button 3 seconds. WiFi icon flashes.")
+        print()
+        input("  Press Enter when ready...")
 
     # ── Step 4: Scan for devices ─────────────────────────────
     print_step(4, "Scanning for Hisense devices...")
     print("  Scanning WiFi networks (this takes ~5 seconds)...")
-    devices = provisioner.scan_for_devices()
 
-    if not devices:
-        print("  No Hisense devices found. Retrying one more time...")
-        time.sleep(3)
+    device_ssid = ARGS["device"]
+    if device_ssid:
+        print(f"  Looking for specified device: {device_ssid}")
+
+    for attempt in range(3):
         devices = provisioner.scan_for_devices()
+        if devices:
+            break
+        print(f"  No devices on attempt {attempt + 1}, retrying...")
+        time.sleep(3)
 
     if not devices:
-        print("  Still no devices found.")
-        print("  Make sure the device is in pairing mode and try again.")
+        print("  No Hisense devices found.")
         sys.exit(1)
 
     print(f"  Found {len(devices)} device(s):")
     for i, d in enumerate(devices):
         print(f"    [{i + 1}] {d['ssid']}  (signal: {d.get('signal', '?')}%)")
 
-    if len(devices) == 1:
+    if device_ssid:
+        chosen = next((d for d in devices if d["ssid"] == device_ssid), None)
+        if not chosen:
+            print(f"  Specified device {device_ssid} not found!")
+            sys.exit(1)
+    elif len(devices) == 1:
         chosen = devices[0]
     else:
-        choice = input(f"  Select device [1-{len(devices)}]: ").strip()
-        try:
-            chosen = devices[int(choice) - 1]
-        except (ValueError, IndexError):
-            print("  Invalid selection.")
-            sys.exit(1)
+        if ARGS["yes"]:
+            chosen = devices[0]
+        else:
+            choice = input(f"  Select device [1-{len(devices)}]: ").strip()
+            try:
+                chosen = devices[int(choice) - 1]
+            except (ValueError, IndexError):
+                print("  Invalid selection.")
+                sys.exit(1)
 
     device_ssid = chosen["ssid"]
     print(f"  Selected: {device_ssid}")
 
     # ── Step 5: Connect PC to device hotspot ─────────────────
     print_step(5, f"Connecting PC to device {device_ssid}...")
-    print("  NOTE: Your PC will temporarily disconnect from the internet.")
-    print("  If you're on Ethernet, this won't affect your connection.")
-
-    if not confirm("Continue?"):
-        sys.exit(0)
+    if not ARGS["yes"]:
+        print("  NOTE: Your PC will temporarily disconnect from the internet.")
+        if not confirm("Continue?"):
+            sys.exit(0)
 
     if not provisioner.connect_to_device(device_ssid):
         print(f"  Failed to connect to {device_ssid}.")
-        print("  You may need to connect manually via Windows WiFi settings.")
         sys.exit(1)
 
     print(f"  Connected to {device_ssid}")
@@ -163,53 +196,46 @@ def main():
         print(f"  Device info: {json.dumps(info, indent=2) if info else 'limited'}")
     except Exception as e:
         print(f"  Warning: could not fetch device info: {e}")
-        print("  Continuing anyway...")
 
-    # ── Step 7: Scan WiFi from device ────────────────────────
-    print_step(7, "Scanning for home WiFi networks (via device)...")
-    provisioner.start_wifi_scan()
-    time.sleep(5)
-    results = provisioner.get_wifi_scan_results()
-
-    if results:
-        print(f"  Device sees {len(results)} networks:")
-        for r in results[:15]:
-            sec = r.get("security", "?")
-            sig = r.get("signal", "?")
-            print(f"    {r['ssid']:30s}  signal={sig}  security={sec}")
+    # ── Step 7: Skip scan in auto mode ───────────────────────
+    if not ARGS["yes"]:
+        print_step(7, "Scanning for home WiFi networks (via device)...")
+        provisioner.start_wifi_scan()
+        time.sleep(5)
+        results = provisioner.get_wifi_scan_results()
+        if results:
+            print(f"  Device sees {len(results)} networks:")
+            for r in results[:15]:
+                print(f"    {r['ssid']:30s}  signal={r.get('signal', '?')}")
     else:
-        print("  No scan results from device. Will try direct credential send.")
+        print_step(7, "Skipping WiFi scan (auto mode)")
 
     # ── Step 8: Send credentials ─────────────────────────────
     print_step(8, "Sending Wi-Fi credentials to device...")
-
     secure = provisioner.is_secure_mode()
     if secure:
-        print("  Device requires secure setup (RSA+AES). Running secure protocol...")
+        print("  Secure mode. Running RSA+AES protocol...")
     else:
-        print("  Device uses direct HTTP. Running standard protocol...")
+        print("  Direct HTTP mode...")
 
     try:
         if secure:
             ok = provisioner.send_credentials_secure(home_ssid, home_pwd)
         else:
             ok = provisioner.send_credentials(home_ssid, home_pwd)
-
         if ok or secure:
-            print("  Device accepted credentials and connected to Wi-Fi!")
+            print("  Credentials sent!")
         else:
             print("  Failed to send credentials.")
             sys.exit(1)
     except (RuntimeError, TimeoutError) as e:
         print(f"  Failed: {e}")
-        print("  The device may still be trying. Check the device LED indicator.")
         sys.exit(1)
 
     # ── Step 9: Reconnect PC to home Wi-Fi ───────────────────
     print_step(9, "Reconnecting PC to home Wi-Fi...")
     if not provisioner.reconnect_to_home_wifi(home_ssid, home_pwd):
-        print("  Warning: could not reconnect automatically.")
-        print(f"  Please reconnect to '{home_ssid}' manually.")
+        print(f"  Warning: could not reconnect to {home_ssid}")
     else:
         print(f"  Reconnected to {home_ssid}")
 
@@ -217,38 +243,34 @@ def main():
     print_step(10, "Confirming device connected to cloud...")
     dsn = provisioner.dsn if provisioner._dsn else device_ssid.split("-", 2)[-1]
     if not provisioner._dsn:
-        print(f"  DSN not directly available, using SSID suffix: {dsn}")
+        print(f"  Derived DSN: {dsn}")
     setup_token = provisioner.setup_token
-    print(f"  DSN: {dsn}")
+    print(f"  Setup token: {setup_token}")
 
     result = binder.confirm_device_connected(dsn, setup_token)
     if result:
         print("  Device confirmed on cloud!")
     else:
         print("  Device did not confirm within timeout.")
-        print("  It may still connect. Check the Hisense app in a few minutes.")
 
     # ── Step 11: Bind device to account ──────────────────────
     print_step(11, "Binding device to your account...")
     try:
-        bind_result = binder.bind_device(dsn, setup_token)
-        print(f"  Device bound to account!")
+        binder.bind_device(dsn, setup_token)
+        print("  Device bound to account!")
     except RuntimeError as e:
-        print(f"  Bind failed via primary method: {e}")
-        print("  Trying alternative registration...")
+        print(f"  Bind primary failed: {e}")
         try:
-            bind_result = binder.register_candidate(dsn, setup_token)
-            print("  Device registered successfully!")
+            binder.register_candidate(dsn, setup_token)
+            print("  Device registered (alt method)!")
         except RuntimeError as e2:
-            print(f"  Alternative registration also failed: {e2}")
+            print(f"  Bind also failed: {e2}")
 
     # ── Done ─────────────────────────────────────────────────
     print()
     print("=" * 60)
-    print("  Provisioning complete!")
-    print(f"  DSN: {dsn}")
-    print(f"  Setup token: {setup_token}")
-    print("  Open the Hi Smart Life app — your device should appear.")
+    print(f"  DSN: {dsn}  Token: {setup_token}")
+    print("  Log saved to: provision.log")
     print("=" * 60)
 
 
