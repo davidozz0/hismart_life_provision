@@ -130,23 +130,55 @@ class WindowsWiFi:
         </security>
     </MSM>
 </WLANProfile>"""
-            import tempfile, os
-            tmpdir = tempfile.gettempdir()
-            profile_path = os.path.join(tmpdir, f"{profile_name}.xml")
-            with open(profile_path, "w", encoding="utf-8") as f:
-                f.write(profile_xml)
-            try:
-                subprocess.run(
-                    ["netsh", "wlan", "add", "profile", f"filename={profile_path}"],
-                    capture_output=True, text=True, timeout=10,
-                )
-            finally:
-                os.unlink(profile_path)
+        else:
+            profile_xml = f"""<?xml version="1.0"?>
+<WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+    <name>{profile_name}</name>
+    <SSIDConfig>
+        <SSID>
+            <name>{ssid}</name>
+        </SSID>
+    </SSIDConfig>
+    <connectionType>ESS</connectionType>
+    <connectionMode>auto</connectionMode>
+    <MSM>
+        <security>
+            <authEncryption>
+                <authentication>open</authentication>
+                <encryption>none</encryption>
+                <useOneX>false</useOneX>
+            </authEncryption>
+        </security>
+    </MSM>
+</WLANProfile>"""
+
+        import tempfile, os
+        tmpdir = tempfile.gettempdir()
+        profile_path = os.path.join(tmpdir, f"{profile_name}.xml")
+        with open(profile_path, "w", encoding="utf-8") as f:
+            f.write(profile_xml)
+        try:
+            result = subprocess.run(
+                ["netsh", "wlan", "add", "profile", f"filename={profile_path}"],
+                capture_output=True, text=True, timeout=10,
+            )
+            _log.debug("netsh add profile: %s", result.stdout.strip())
+        finally:
+            os.unlink(profile_path)
 
         subprocess.run(
+            ["netsh", "wlan", "disconnect"],
+            capture_output=True, text=True, timeout=10,
+        )
+        time.sleep(1)
+
+        connect_result = subprocess.run(
             ["netsh", "wlan", "connect", f"name={profile_name}", f"ssid={ssid}"],
             capture_output=True, text=True, timeout=10,
         )
+        _log.debug("netsh connect: %s", connect_result.stdout.strip())
+        if connect_result.stderr.strip():
+            _log.debug("netsh connect stderr: %s", connect_result.stderr.strip())
 
         deadline = time.time() + timeout
         while time.time() < deadline:
