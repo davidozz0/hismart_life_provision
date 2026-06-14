@@ -200,10 +200,14 @@ class SecureLANServer:
 
             def do_POST(self):
                 body = self._read_body()
-                path = self.path.split("?")[0]  # Strip query string
-                _log.info("DEV->PC %s %s (%dB)", self.command, path, len(body))
-                if body and len(body) < 500:
-                    _log.debug("  body: %s", body[:300])
+                path = self.path.split("?")[0]
+                _log.info("POST %s (%dB) headers: %s", path, len(body), dict(self.headers))
+                if body:
+                    _log.info("  body hex: %s", body[:100].hex())
+                    try:
+                        _log.info("  body txt: %s", body[:200].decode("utf-8", errors="replace"))
+                    except:
+                        pass
 
                 if path == "/local_lan/key_exchange.json":
                     resp_body = parent._handle_key_exchange(body)
