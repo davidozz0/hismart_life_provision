@@ -27,9 +27,12 @@ This tool replicates all of these steps from a Windows PC using only Python stdl
 ```bash
 git clone https://github.com/davidozz0/hismart_life_provision.git
 cd hismart_life_provision
+pip install cryptography
 ```
 
-No pip dependencies required -- only Python standard library.
+Dependencies:
+- **Python 3.11+** standard library
+- **cryptography** (for RSA+AES secure device communication)
 
 ## Usage
 
@@ -76,9 +79,11 @@ hismart_life_provision/
 │   ├── config.py                 # Ayla API endpoints, credentials, constants
 │   ├── auth.py                   # Ayla cloud authentication (login, token management)
 │   ├── wifi_win.py               # Windows Wi-Fi control (scan, connect, disconnect)
-│   ├── provision.py (module)     # Device provisioning: SoftAP HTTP protocol
-│   ├── bind.py                   # Device binding to Ayla account
-│   └── log.py                    # Structured logging
+│   ├── provision.py                # Device provisioning: SoftAP HTTP protocol
+│   ├── lan_secure.py               # Secure setup: RSA keygen, HTTP server, key exchange, AES
+│   ├── credentials.py              # Obfuscated credential storage (~/.hismart_provision/)
+│   ├── bind.py                     # Device binding to Ayla account
+│   └── log.py                      # Structured logging
 ```
 
 ## Reverse engineering notes
