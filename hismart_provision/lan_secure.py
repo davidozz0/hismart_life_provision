@@ -414,6 +414,7 @@ class SecureLANServer:
             "method": "GET",
             "resource": "status.json",
             "uri": "/local_lan/status.json",
+            "data": "",
         }
         self._commands.append(cmd)
         _log.info("Queued status request command (id=%d)", self._cmd_id)

@@ -256,8 +256,9 @@ class DeviceProvisioner:
         server.set_rsa_key(private_pem)
         server.start()
 
-        # Phase 1: just queue WiFi connect (device pushes status on its own)
-        server.queue_connect_command(ssid, password, self._setup_token)
+        # Phase 1: ask device for its info (DSN)
+        server.queue_status_command()
+        # Phase 2: will queue WiFi command after DSN received
 
         ok = send_local_reg(self._device_ip, phone_ip, server.port, public_pem)
         if not ok:
@@ -270,8 +271,9 @@ class DeviceProvisioner:
             server.stop()
             return False
 
-        _log.info("Key exchange complete. Waiting for device to report DSN...")
-        for _ in range(5):
+        _log.info("Key exchange complete. Device will poll for status command...")
+        # Wait for device to poll, get status command, and POST status response back
+        for _ in range(30):
             time.sleep(1)
             if server.dsn:
                 self._dsn = server.dsn
@@ -279,9 +281,21 @@ class DeviceProvisioner:
                 break
 
         if not self._dsn:
+            _log.warning("Device did not return DSN within 30s, continuing anyway")
             suffix = self._device_ssid.split("-", 2)[-1] if self._device_ssid else "unknown"
             self._dsn = suffix
-            _log.info("DSN not from device, using SSID suffix: %s", self._dsn)
+
+        # Phase 2: now send WiFi credentials
+        server.queue_connect_command(ssid, password, self._setup_token)
+        _log.info("WiFi command queued. Waiting for device to pick it up...")
+        for _ in range(15):
+            time.sleep(1)
+            if server.dsn and self._dsn == server.dsn:
+                pass  # already have DSN
+            elif server.dsn:
+                self._dsn = server.dsn
+                _log.info("Got DSN (late): %s", self._dsn)
+                break
 
         server.stop()
         _log.info("Secure setup complete")
