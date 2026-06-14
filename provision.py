@@ -229,22 +229,16 @@ def main():
 
     # ── Step 8: Send credentials ─────────────────────────────
     print_step(8, "Sending Wi-Fi credentials to device...")
-    secure = provisioner.is_secure_mode()
-    if secure:
-        print("  Secure mode. Running RSA+AES protocol...")
-    else:
-        print("  Direct HTTP mode...")
+    # Get DSN first (non-secure GET /status.json)
+    # Then always use secure mode for WiFi credentials
+    if not provisioner._dsn:
+        provisioner.is_secure_mode()  # Try to get DSN
 
+    # Always use secure protocol for sending credentials
+    print("  Sending credentials via secure protocol...")
     try:
-        if secure:
-            ok = provisioner.send_credentials_secure(home_ssid, home_pwd)
-        else:
-            ok = provisioner.send_credentials(home_ssid, home_pwd)
-        if ok or secure:
-            print("  Credentials sent!")
-        else:
-            print("  Failed to send credentials.")
-            sys.exit(1)
+        ok = provisioner.send_credentials_secure(home_ssid, home_pwd)
+        print("  Credentials sent!")
     except (RuntimeError, TimeoutError) as e:
         print(f"  Failed: {e}")
         sys.exit(1)
