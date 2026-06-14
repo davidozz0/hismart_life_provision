@@ -261,7 +261,8 @@ def main():
         # ── Step 10: Bind device to account ──────────────────
         print_step(10, "Binding device to your account...")
         try:
-            binder.bind_device(dsn, setup_token)
+            binder.bind_device(dsn, setup_token,
+                             device_service_url=provisioner._device_service_url)
             print("  Device bound!")
         except RuntimeError as e:
             print(f"  Bind failed: {e}")

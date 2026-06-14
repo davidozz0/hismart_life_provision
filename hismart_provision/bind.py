@@ -35,13 +35,9 @@ class DeviceBinder:
         return None
 
     def bind_device(self, dsn: str, setup_token: str,
-                    regtoken: str = "", lat: str = "0.0", lng: str = "0.0") -> dict:
-        """Register/bind the device to the user's account.
-
-        Matches AylaRegistration.registerDevice() format:
-        POST /apiv1/devices.json
-        {"device": {"dsn": "...", "setup_token": "...", "lat": "...", "lng": "..."}}
-        """
+                    regtoken: str = "", lat: str = "0.0", lng: str = "0.0",
+                    device_service_url: str = "") -> dict:
+        """Register/bind the device to the user's account."""
         _log.info("Binding device: dsn=%s", dsn)
         body = {
             "device": {
@@ -54,7 +50,19 @@ class DeviceBinder:
         if regtoken:
             body["device"]["regtoken"] = regtoken
 
-        url = f"{AYLA_DEVICE_BASE_URL}/apiv1/devices.json"
-        result = self._auth.api_post(url, body, base_url=AYLA_DEVICE_BASE_URL)
-        _log.info("Device bound!")
-        return result
+        # Try device-specific URL first (from status response), then generic
+        urls = []
+        if device_service_url:
+            urls.append(f"https://{device_service_url}/apiv1/devices.json")
+        urls.append(f"{AYLA_DEVICE_BASE_URL}/apiv1/devices.json")
+
+        last_error = None
+        for url in urls:
+            try:
+                result = self._auth.api_post(url, body, base_url="")
+                _log.info("Device bound via %s!", url[:60])
+                return result
+            except RuntimeError as e:
+                last_error = e
+                _log.debug("Bind failed via %s: %s", url[:60], e)
+        raise last_error or RuntimeError("Bind failed on all URLs")

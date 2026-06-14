@@ -31,6 +31,7 @@ class DeviceProvisioner:
         self._setup_token: str | None = None
         self._device_ssid: str | None = None
         self._device_ip: str = DEVICE_HOTSPOT_IP
+        self._device_service_url: str = ""
 
     @property
     def dsn(self) -> str:
@@ -90,6 +91,8 @@ class DeviceProvisioner:
                 if "dsn" in data:
                     self._dsn = data["dsn"]
                     _log.info("Device DSN: %s", self._dsn)
+                if "device_service" in data:
+                    self._device_service_url = data["device_service"]
                 return data
         except urllib.error.HTTPError as e:
             _log.debug("Device status: HTTP %d", e.code)
@@ -245,7 +248,8 @@ class DeviceProvisioner:
                     if "dsn" in data:
                         self._dsn = data["dsn"]
                         _log.info("Got DSN from non-secure status: %s", self._dsn)
-                        return False
+                    if "device_service" in data:
+                        self._device_service_url = data["device_service"]
                     return False
             except urllib.error.HTTPError as e:
                 if e.code == 404:
