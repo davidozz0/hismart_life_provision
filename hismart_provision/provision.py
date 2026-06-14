@@ -256,52 +256,39 @@ class DeviceProvisioner:
         server.set_rsa_key(private_pem)
         server.start()
 
-        # Phase 1: ask device for its info (DSN) - direct encrypted HTTP GET
-        server.queue_status_command()
-
+        # NO commands queued yet - key exchange returns 200, device may push status first
         ok = send_local_reg(self._device_ip, phone_ip, server.port, public_pem)
         if not ok:
             server.stop()
             return False
 
-        _log.info("Waiting for key exchange from device (30s)...")
+        _log.info("Waiting for key exchange (30s)...")
         if not server.wait_for_key_exchange(30):
             _log.error("Key exchange timed out")
             server.stop()
             return False
 
-        _log.info("Key exchange complete. Querying device directly for DSN...")
-
-        # Try direct encrypted HTTP GET to device's status endpoint
-        for _ in range(10):
+        _log.info("Key exchange done. Waiting for device to push status...")
+        for _ in range(15):
             time.sleep(1)
-            dsn = _fetch_dsn_from_device(self._device_ip, server._enc)
-            if dsn:
-                self._dsn = dsn
-                _log.info("Got DSN from device: %s", self._dsn)
+            if server.dsn:
+                self._dsn = server.dsn
+                _log.info("Got DSN: %s", self._dsn)
                 break
 
-        # Also check if device pushed status via our server
-        if not self._dsn:
-            _log.info("Waiting for status push via LAN (up to 30s)...")
-            for _ in range(30):
-                time.sleep(1)
-                if server.dsn:
-                    self._dsn = server.dsn
-                    _log.info("Got DSN from device LAN: %s", self._dsn)
-                    break
+        # Now queue WiFi command
+        server.queue_connect_command(ssid, password, self._setup_token)
+        _log.info("WiFi command queued. Waiting for device to pick it up...")
+        for _ in range(15):
+            time.sleep(1)
+            if server.dsn:
+                self._dsn = server.dsn
+                _log.info("Got DSN (late): %s", self._dsn)
 
         if not self._dsn:
             suffix = self._device_ssid.split("-", 2)[-1] if self._device_ssid else "unknown"
             self._dsn = suffix
             _log.warning("No DSN, using SSID suffix: %s", self._dsn)
-
-        # Phase 2: send WiFi credentials via DIRECT encrypted HTTP POST
-        from urllib.parse import urlencode
-        connect_url = f"http://{self._device_ip}/local_lan/connect_status"
-        connect_body = urlencode({"ssid": ssid, "key": password, "setup_token": self._setup_token})
-        _log.info("Sending encrypted WiFi credentials directly to device...")
-        _encrypted_request(connect_url, "POST", connect_body, server._enc)
 
         server.stop()
         _log.info("Secure setup complete")
