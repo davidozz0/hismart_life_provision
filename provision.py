@@ -18,6 +18,7 @@ from hismart_provision.auth import AylaAuth
 from hismart_provision.wifi_win import WindowsWiFi
 from hismart_provision.provision import DeviceProvisioner
 from hismart_provision.bind import DeviceBinder
+from hismart_provision.credentials import save, load, clear
 
 
 def print_step(step: int, msg: str) -> None:
@@ -30,6 +31,11 @@ def confirm(msg: str) -> bool:
 
 
 def main():
+    if "--clear" in sys.argv:
+        clear()
+        print("Saved credentials deleted.")
+        return
+
     print()
     print("=" * 60)
     print("  HiSmart Provision - Hisense Smart Device Setup")
@@ -43,10 +49,32 @@ def main():
     # ── Step 1: Collect credentials ──────────────────────────
     print_step(1, "Account & Wi-Fi credentials")
     print()
-    email = input("  Hisense account email: ").strip()
-    password = getpass.getpass("  Hisense account password: ")
-    home_ssid = input("  Home Wi-Fi SSID: ").strip()
-    home_pwd = getpass.getpass("  Home Wi-Fi password: ")
+    saved = load()
+    if saved:
+        print("  Saved credentials found:")
+        print(f"    Account:  {saved['email']}")
+        print(f"    Wi-Fi:    {saved['home_ssid']}")
+        print()
+        use_saved = confirm("Use saved credentials?")
+        if use_saved:
+            email = saved["email"]
+            password = saved["password"]
+            home_ssid = saved["home_ssid"]
+            home_pwd = saved["home_pwd"]
+        else:
+            saved = None
+            clear()
+            print("  Saved credentials deleted.")
+
+    if not saved:
+        email = input("  Hisense account email: ").strip()
+        password = getpass.getpass("  Hisense account password: ")
+        home_ssid = input("  Home Wi-Fi SSID: ").strip()
+        home_pwd = getpass.getpass("  Home Wi-Fi password: ")
+        print()
+        if confirm("Save credentials for next time? (password is obfuscated)"):
+            save(email, password, home_ssid, home_pwd)
+            print("  Saved.")
 
     # ── Step 2: Login to Ayla cloud ──────────────────────────
     print_step(2, "Logging in to Hisense cloud...")
