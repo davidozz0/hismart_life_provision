@@ -200,6 +200,7 @@ class SecureLANServer:
                     resp_body = parent._handle_key_exchange(body)
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
+                    self.send_header("Connection", "keep-alive")
                     resp_bytes = resp_body.encode("utf-8") if isinstance(resp_body, str) else resp_body
                     self.send_header("Content-Length", str(len(resp_bytes)))
                     self.end_headers()
@@ -274,7 +275,7 @@ class SecureLANServer:
 
             # Generate our side of the key
             self._enc.random_2 = _random_token(16)
-            self._enc.time_2 = int(time.time_ns())
+            self._enc.time_2 = int(time.monotonic_ns())  # Match Java System.nanoTime()
 
             # RSA-decrypt the 'sec' field to get bLanKey
             sec_b64 = ke.get("sec", "")
