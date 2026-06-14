@@ -71,6 +71,16 @@ def main():
     print("=" * 60)
 
     wifi = WindowsWiFi()
+
+    # ── Step 0: Check current network state ──────────────────
+    net = wifi.get_network_info()
+    print_step(0, "Network check")
+    print(f"  Ethernet: {'connected' if net['ethernet'] else 'not detected'}")
+    print(f"  Wi-Fi SSID: {net['wifi_ssid'] or 'not connected'}")
+    if net['wifi_gateway']:
+        print(f"  Wi-Fi gateway: {net['wifi_gateway']}")
+    print()
+
     auth = AylaAuth()
     provisioner = DeviceProvisioner(wifi)
     binder = DeviceBinder(auth)
@@ -263,8 +273,14 @@ def main():
 
     # ── Step 11: Restore WiFi ────────────────────────────────
     print_step(11, "Restoring Wi-Fi connection...")
-    provisioner.reconnect_to_home_wifi(home_ssid, home_pwd)
-    print(f"  Reconnected to {home_ssid}")
+    if net["wifi_ssid"]:
+        provisioner.reconnect_to_home_wifi(net["wifi_ssid"], home_pwd)
+        print(f"  Reconnected to {net['wifi_ssid']}")
+    elif home_ssid:
+        provisioner.reconnect_to_home_wifi(home_ssid, home_pwd)
+        print(f"  Reconnected to {home_ssid}")
+    else:
+        print("  No home Wi-Fi to restore (was on Ethernet)")
 
     # ── Done ─────────────────────────────────────────────────
     print()

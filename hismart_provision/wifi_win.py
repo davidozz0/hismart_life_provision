@@ -228,3 +228,31 @@ class WindowsWiFi:
             elif in_wifi and line.strip() == "":
                 in_wifi = False
         return None
+
+    @staticmethod
+    def get_network_info() -> dict:
+        """Return current network state: {ethernet: bool, wifi_ssid: str|None, wifi_band: str|None}."""
+        result = subprocess.run(
+            ["ipconfig"], capture_output=True, text=True, timeout=10,
+        )
+        output = result.stdout
+        info = {"ethernet": False, "wifi_ssid": None, "wifi_gateway": None}
+
+        current_adapter = None
+        for line in output.splitlines():
+            stripped = line.strip()
+            if "Ethernet adapter" in line and "Media disconnected" not in line:
+                current_adapter = "eth"
+            elif ("Wireless LAN adapter" in line or "Wi-Fi" in line or "Wireless" in line) and "Media disconnected" not in line:
+                current_adapter = "wifi"
+            elif current_adapter == "eth" and "IPv4" in stripped and not stripped.startswith("Autoconfiguration"):
+                info["ethernet"] = True
+            elif current_adapter == "wifi" and ("Default Gateway" in line or "Gateway predefinito" in line):
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    gw = parts[-1].strip()
+                    if gw and gw != "0.0.0.0":
+                        info["wifi_gateway"] = gw
+
+        info["wifi_ssid"] = WindowsWiFi.get_current_ssid()
+        return info
