@@ -275,6 +275,11 @@ class DeviceProvisioner:
         _log.info("Key exchange complete. Waiting for device to execute WiFi connect...")
         time.sleep(10)
 
+        # Derive DSN from SSID suffix (MAC address is last part of DSN)
+        suffix = self._device_ssid.split("-", 2)[-1] if self._device_ssid else "unknown"
+        self._dsn = f"AC000W-{suffix}"
+        _log.info("Derived DSN: %s", self._dsn)
+
         server.stop()
         _log.info("Secure setup complete")
         return True

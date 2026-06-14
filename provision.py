@@ -215,7 +215,9 @@ def main():
 
     # ── Step 10: Confirm device on cloud ─────────────────────
     print_step(10, "Confirming device connected to cloud...")
-    dsn = provisioner.dsn or input("  Enter device DSN (from label): ").strip()
+    dsn = provisioner.dsn if provisioner._dsn else device_ssid.split("-", 2)[-1]
+    if not provisioner._dsn:
+        print(f"  DSN not directly available, using SSID suffix: {dsn}")
     setup_token = provisioner.setup_token
     print(f"  DSN: {dsn}")
 
