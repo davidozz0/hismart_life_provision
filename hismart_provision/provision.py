@@ -284,8 +284,8 @@ class DeviceProvisioner:
 
         if not self._dsn:
             suffix = self._device_ssid.split("-", 2)[-1] if self._device_ssid else "unknown"
-            self._dsn = f"AC000W-{suffix}"
-            _log.info("DSN not from device, derived from SSID: %s", self._dsn)
+            self._dsn = suffix
+            _log.info("DSN not from device, using SSID suffix: %s", self._dsn)
 
         server.stop()
         _log.info("Secure setup complete")
