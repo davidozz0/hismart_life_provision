@@ -260,12 +260,19 @@ def main():
 
         # ── Step 10: Bind device to account ──────────────────
         print_step(10, "Binding device to your account...")
-        try:
-            binder.bind_device(dsn, setup_token,
-                             device_service_url=provisioner._device_service_url)
-            print("  Device bound!")
-        except RuntimeError as e:
-            print(f"  Bind failed: {e}")
+        import time as _time
+        for attempt in range(5):
+            try:
+                binder.bind_device(dsn, setup_token,
+                                 device_service_url=provisioner._device_service_url)
+                print("  Device bound!")
+                break
+            except RuntimeError as e:
+                if attempt < 4:
+                    print(f"  Bind attempt {attempt+1} failed, retrying...")
+                    _time.sleep(3)
+                else:
+                    print(f"  Bind failed after 5 attempts: {e}")
     else:
         print_step(9, "Skipping cloud binding (no real DSN obtained)")
         print(f"  Got DSN: {dsn} -- not a real Ayla DSN, cannot bind")
