@@ -232,20 +232,15 @@ def main():
         print(f"  Failed: {e}")
         sys.exit(1)
 
-    # ── Step 9: Reconnect PC to home Wi-Fi ───────────────────
-    print_step(9, "Reconnecting PC to home Wi-Fi...")
-    if not provisioner.reconnect_to_home_wifi(home_ssid, home_pwd):
-        print(f"  Warning: could not reconnect to {home_ssid}")
-    else:
-        print(f"  Reconnected to {home_ssid}")
+    # ── Step 9: Internet check & cloud confirmation ──────────
+    print_step(9, "Confirming device on Ayla cloud...")
+    print("  Keeping Wi-Fi on device, using Ethernet for internet")
 
-    # ── Step 10: Confirm device on cloud ─────────────────────
-    print_step(10, "Confirming device connected to cloud...")
     dsn = provisioner.dsn if provisioner._dsn else device_ssid.split("-", 2)[-1]
     if not provisioner._dsn:
         print(f"  Derived DSN: {dsn}")
     setup_token = provisioner.setup_token
-    print(f"  Setup token: {setup_token}")
+    print(f"  DSN: {dsn}  Token: {setup_token}")
 
     result = binder.confirm_device_connected(dsn, setup_token)
     if result:
@@ -253,8 +248,8 @@ def main():
     else:
         print("  Device did not confirm within timeout.")
 
-    # ── Step 11: Bind device to account ──────────────────────
-    print_step(11, "Binding device to your account...")
+    # ── Step 10: Bind device to account ──────────────────────
+    print_step(10, "Binding device to your account...")
     try:
         binder.bind_device(dsn, setup_token)
         print("  Device bound to account!")
@@ -265,6 +260,11 @@ def main():
             print("  Device registered (alt method)!")
         except RuntimeError as e2:
             print(f"  Bind also failed: {e2}")
+
+    # ── Step 11: Restore WiFi ────────────────────────────────
+    print_step(11, "Restoring Wi-Fi connection...")
+    provisioner.reconnect_to_home_wifi(home_ssid, home_pwd)
+    print(f"  Reconnected to {home_ssid}")
 
     # ── Done ─────────────────────────────────────────────────
     print()
