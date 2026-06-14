@@ -272,25 +272,32 @@ class DeviceProvisioner:
             return False
 
         _log.info("Key exchange complete. Polling device for DSN directly...")
-        # After key exchange, the device may have activated its HTTP endpoint
-        for _ in range(10):
-            time.sleep(1)
-            try:
-                url = f"http://{self._device_ip}/local_lan/status.json"
-                req = urllib.request.Request(url, data=b"{}",
-                    headers={"Content-Type": "application/json", "Accept": "application/json"},
-                    method="POST")
-                with urllib.request.urlopen(req, timeout=3) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    _log.info("Direct status response: %s", data)
-                    if "dsn" in data:
-                        self._dsn = data["dsn"]
-                        _log.info("Got DSN from device HTTP: %s", self._dsn)
-                        break
-            except urllib.error.HTTPError:
-                pass  # still 404
-            except Exception as e:
-                _log.debug("Direct poll: %s", e)
+        # After key exchange, the device may activate its direct HTTP endpoint
+        for url_path in ["/status.json", "/local_lan/status.json"]:
+            for _ in range(5):
+                time.sleep(1)
+                try:
+                    url = f"http://{self._device_ip}{url_path}"
+                    req = urllib.request.Request(url, data=b"{}",
+                        headers={"Content-Type": "application/json", "Accept": "application/json"},
+                        method="POST")
+                    with urllib.request.urlopen(req, timeout=3) as resp:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        _log.info("Direct HTTP %s response: %s", url_path, json.dumps(data)[:200])
+                        if "dsn" in data:
+                            self._dsn = data["dsn"]
+                            _log.info("Got DSN: %s", self._dsn)
+                            break
+                        if "device" in data and "dsn" in data["device"]:
+                            self._dsn = data["device"]["dsn"]
+                            _log.info("Got DSN (nested): %s", self._dsn)
+                            break
+                except urllib.error.HTTPError as e:
+                    _log.debug("%s -> HTTP %d", url_path, e.code)
+                except Exception as e:
+                    _log.debug("%s -> %s", url_path, e)
+            if self._dsn:
+                break
 
         # Also wait for status push via POST to our server
         if not self._dsn:
