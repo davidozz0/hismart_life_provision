@@ -2,7 +2,9 @@
 
 Python tool for provisioning Hisense smart devices (air conditioners, dehumidifiers, refrigerators) via SoftAP Wi-Fi provisioning -- **without the official app**.
 
-Replicates the exact provisioning flow reverse-engineered from the Hi Smart Life Android APK (v1.0.12, package `com.hisense.hismartinternationalforandroid`).
+Replicates the exact provisioning flow reverse-engineered from the Hi Smart Life Android APK (v1.0.12, package `com.hisense.hismartinternationalforandroid`), including the RSA-1024 + AES-256-CBC secure setup protocol.
+
+This project was entirely built using **[opencode](https://opencode.ai)** powered by **DeepSeek V4 Pro** -- APK decompilation, protocol reverse engineering, and all code generation.
 
 ## How it works
 
