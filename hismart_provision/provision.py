@@ -256,9 +256,8 @@ class DeviceProvisioner:
         server.set_rsa_key(private_pem)
         server.start()
 
-        # Phase 1: ask device for its info (DSN)
+        # Phase 1: ask device for its info (DSN) - direct encrypted HTTP GET
         server.queue_status_command()
-        # Phase 2: will queue WiFi command after DSN received
 
         ok = send_local_reg(self._device_ip, phone_ip, server.port, public_pem)
         if not ok:
@@ -271,35 +270,18 @@ class DeviceProvisioner:
             server.stop()
             return False
 
-        _log.info("Key exchange complete. Polling device for DSN directly...")
-        # After key exchange, the device may activate its direct HTTP endpoint
-        for url_path in ["/status.json", "/local_lan/status.json"]:
-            for _ in range(5):
-                time.sleep(1)
-                try:
-                    url = f"http://{self._device_ip}{url_path}"
-                    req = urllib.request.Request(url, data=b"{}",
-                        headers={"Content-Type": "application/json", "Accept": "application/json"},
-                        method="POST")
-                    with urllib.request.urlopen(req, timeout=3) as resp:
-                        data = json.loads(resp.read().decode("utf-8"))
-                        _log.info("Direct HTTP %s response: %s", url_path, json.dumps(data)[:200])
-                        if "dsn" in data:
-                            self._dsn = data["dsn"]
-                            _log.info("Got DSN: %s", self._dsn)
-                            break
-                        if "device" in data and "dsn" in data["device"]:
-                            self._dsn = data["device"]["dsn"]
-                            _log.info("Got DSN (nested): %s", self._dsn)
-                            break
-                except urllib.error.HTTPError as e:
-                    _log.debug("%s -> HTTP %d", url_path, e.code)
-                except Exception as e:
-                    _log.debug("%s -> %s", url_path, e)
-            if self._dsn:
+        _log.info("Key exchange complete. Querying device directly for DSN...")
+
+        # Try direct encrypted HTTP GET to device's status endpoint
+        for _ in range(10):
+            time.sleep(1)
+            dsn = _fetch_dsn_from_device(self._device_ip, server._enc)
+            if dsn:
+                self._dsn = dsn
+                _log.info("Got DSN from device: %s", self._dsn)
                 break
 
-        # Also wait for status push via POST to our server
+        # Also check if device pushed status via our server
         if not self._dsn:
             _log.info("Waiting for status push via LAN (up to 30s)...")
             for _ in range(30):
@@ -310,21 +292,16 @@ class DeviceProvisioner:
                     break
 
         if not self._dsn:
-            _log.warning("Device did not return DSN within 30s, continuing anyway")
             suffix = self._device_ssid.split("-", 2)[-1] if self._device_ssid else "unknown"
             self._dsn = suffix
+            _log.warning("No DSN, using SSID suffix: %s", self._dsn)
 
-        # Phase 2: now send WiFi credentials
-        server.queue_connect_command(ssid, password, self._setup_token)
-        _log.info("WiFi command queued. Waiting for device to pick it up...")
-        for _ in range(15):
-            time.sleep(1)
-            if server.dsn and self._dsn == server.dsn:
-                pass  # already have DSN
-            elif server.dsn:
-                self._dsn = server.dsn
-                _log.info("Got DSN (late): %s", self._dsn)
-                break
+        # Phase 2: send WiFi credentials via DIRECT encrypted HTTP POST
+        from urllib.parse import urlencode
+        connect_url = f"http://{self._device_ip}/local_lan/connect_status"
+        connect_body = urlencode({"ssid": ssid, "key": password, "setup_token": self._setup_token})
+        _log.info("Sending encrypted WiFi credentials directly to device...")
+        _encrypted_request(connect_url, "POST", connect_body, server._enc)
 
         server.stop()
         _log.info("Secure setup complete")
@@ -341,3 +318,43 @@ def _get_own_ip(target_ip: str) -> str:
         return ip
     except Exception:
         return "192.168.0.100"
+
+
+def _fetch_dsn_from_device(device_ip: str, enc) -> str | None:
+    """Make encrypted HTTP GET to device's status endpoint to fetch DSN."""
+    url = f"http://{device_ip}/local_lan/status.json"
+    body = enc.encrypt_and_sign("")  # empty data, encrypted
+    _log.debug("Encrypted GET to %s", url)
+    try:
+        req = urllib.request.Request(url, data=body.encode("utf-8"),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            raw = resp.read().decode("utf-8")
+            _log.debug("Device response: %s", raw[:200])
+            if enc.dev_crypto_key:
+                decrypted = enc.decrypt(raw)
+                if decrypted:
+                    data = json.loads(decrypted)
+                    dsn = data.get("dsn") or data.get("device", {}).get("dsn")
+                    return dsn
+    except Exception as e:
+        _log.debug("Status fetch error: %s", e)
+    return None
+
+
+def _encrypted_request(url: str, method: str, body: str, enc) -> dict:
+    """Make an encrypted HTTP request to the device and return response."""
+    payload = enc.encrypt_and_sign(body)
+    _log.debug("Encrypted %s to %s (body: %s)", method, url, body[:80])
+    req = urllib.request.Request(url, data=payload.encode("utf-8"),
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode("utf-8")
+            _log.debug("Device response: %s", raw[:200])
+            return {}
+    except Exception as e:
+        _log.debug("Request error: %s", e)
+        return {}
