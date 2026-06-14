@@ -3,6 +3,7 @@
 import json
 import re
 import secrets
+import socket
 import string
 import time
 import urllib.error
@@ -11,6 +12,7 @@ import urllib.request
 from .config import DEVICE_HOTSPOT_IP, DEVICE_SSID_PATTERN, SETUP_TIMEOUTS
 from .log import get_logger
 from .wifi_win import WindowsWiFi
+from .lan_secure import SecureLANServer, generate_rsa_keypair, send_local_reg
 
 _log = get_logger("hismart.provision")
 
@@ -222,6 +224,64 @@ class DeviceProvisioner:
             return {}
 
 
-def _random_token(length: int = 8) -> str:
-    alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(length))
+    def is_secure_mode(self) -> bool:
+        """Check if the device requires secure (RSA+AES) setup."""
+        url = f"http://{self._device_ip}/local_lan/status.json"
+        try:
+            req = urllib.request.Request(url, method="POST", data=b"{}",
+                headers={"Content-Type": "application/json", "Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                return False
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                _log.info("Device returned 404 -> secure mode required")
+                return True
+            return False
+        except Exception:
+            return False
+
+    def send_credentials_secure(self, ssid: str, password: str) -> bool:
+        """Send WiFi credentials using the secure RSA+AES protocol."""
+        self._setup_token = _random_token(8)
+
+        private_pem, public_pem = generate_rsa_keypair()
+
+        phone_ip = _get_own_ip(self._device_ip)
+        _log.info("Phone IP on device network: %s", phone_ip)
+
+        server = SecureLANServer()
+        server.set_rsa_key(private_pem)
+        server.start()
+
+        server.queue_connect_command(ssid, password, self._setup_token)
+
+        ok = send_local_reg(self._device_ip, phone_ip, server.port, public_pem)
+        if not ok:
+            _log.error("Failed to send local_reg to device")
+            server.stop()
+            return False
+
+        _log.info("Waiting for key exchange from device (30s)...")
+        if not server.wait_for_key_exchange(30):
+            _log.error("Key exchange timed out")
+            server.stop()
+            return False
+
+        _log.info("Key exchange complete. Waiting for device to execute WiFi connect...")
+        time.sleep(10)
+
+        server.stop()
+        _log.info("Secure setup complete")
+        return True
+
+def _get_own_ip(target_ip: str) -> str:
+    """Determine our own IP on the device's network by binding a UDP socket."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(1)
+        s.connect((target_ip, 1))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "192.168.0.100"

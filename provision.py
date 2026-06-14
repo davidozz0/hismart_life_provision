@@ -182,9 +182,24 @@ def main():
 
     # ── Step 8: Send credentials ─────────────────────────────
     print_step(8, "Sending Wi-Fi credentials to device...")
+
+    secure = provisioner.is_secure_mode()
+    if secure:
+        print("  Device requires secure setup (RSA+AES). Running secure protocol...")
+    else:
+        print("  Device uses direct HTTP. Running standard protocol...")
+
     try:
-        provisioner.send_credentials(home_ssid, home_pwd)
-        print("  Device accepted credentials and connected to Wi-Fi!")
+        if secure:
+            ok = provisioner.send_credentials_secure(home_ssid, home_pwd)
+        else:
+            ok = provisioner.send_credentials(home_ssid, home_pwd)
+
+        if ok or secure:
+            print("  Device accepted credentials and connected to Wi-Fi!")
+        else:
+            print("  Failed to send credentials.")
+            sys.exit(1)
     except (RuntimeError, TimeoutError) as e:
         print(f"  Failed: {e}")
         print("  The device may still be trying. Check the device LED indicator.")
