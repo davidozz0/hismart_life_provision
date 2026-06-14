@@ -358,7 +358,17 @@ class SecureLANServer:
             if self._enc.app_crypto_key:
                 payload = self._enc.encrypt_and_sign(inner)
                 _log.info("Sending encrypted command (id=%d) size=%dB", cmd.get("id"), len(payload))
-                _log.debug("Encrypted payload: %s", payload[:200])
+
+                # Self-test: decrypt our own output to verify round-trip
+                try:
+                    wrapper = json.loads(payload)
+                    decrypted = self._enc.decrypt(wrapper["enc"])
+                    if decrypted:
+                        _log.info("Self-decrypt OK: %s", decrypted[:120])
+                    else:
+                        _log.error("Self-decrypt FAILED!")
+                except Exception as e:
+                    _log.error("Self-decrypt error: %s", e)
             else:
                 payload = inner
                 _log.info("Sending plaintext command (id=%d)", cmd.get("id"))
