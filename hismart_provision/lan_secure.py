@@ -359,16 +359,20 @@ class SecureLANServer:
                 payload = self._enc.encrypt_and_sign(inner)
                 _log.info("Sending encrypted command (id=%d) size=%dB", cmd.get("id"), len(payload))
 
-                # Self-test: decrypt our own output to verify round-trip
+                # Self-test: decrypt using APP keys (what the device uses to decrypt our messages)
                 try:
                     wrapper = json.loads(payload)
-                    decrypted = self._enc.decrypt(wrapper["enc"])
-                    if decrypted:
-                        _log.info("Self-decrypt OK: %s", decrypted[:120])
-                    else:
-                        _log.error("Self-decrypt FAILED!")
+                    import base64 as b64
+                    encrypted = b64.b64decode(wrapper["enc"])
+                    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+                    cipher = Cipher(algorithms.AES(self._enc.app_crypto_key), modes.CBC(self._enc.app_iv_seed))
+                    decryptor = cipher.decryptor()
+                    decrypted = decryptor.update(encrypted) + decryptor.finalize()
+                    decrypted = decrypted.rstrip(b"\x00")
+                    text = decrypted.decode("utf-8")
+                    _log.info("Self-decrypt OK: %s", text[:120])
                 except Exception as e:
-                    _log.error("Self-decrypt error: %s", e)
+                    _log.error("Self-decrypt FAILED: %s", e)
             else:
                 payload = inner
                 _log.info("Sending plaintext command (id=%d)", cmd.get("id"))
