@@ -195,7 +195,6 @@ class DeviceProvisioner:
         self.disconnect_from_device()
         return self._wifi.connect(ssid, password, timeout=SETUP_TIMEOUTS["reconnect_wifi"])
 
-    @staticmethod
     def _device_http_get(self, url: str, timeout: int = 10) -> dict:
         req = urllib.request.Request(
             url,
@@ -209,7 +208,6 @@ class DeviceProvisioner:
         except json.JSONDecodeError:
             return {}
 
-    @staticmethod
     def _device_http_post(self, url: str, data: dict, timeout: int = 10) -> dict:
         body = json.dumps(data).encode("utf-8")
         req = urllib.request.Request(
